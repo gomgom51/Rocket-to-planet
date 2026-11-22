@@ -5,6 +5,7 @@
 
 import { settings } from './settings.js';
 import { timeScale } from './util.js';
+import { setDuck } from './audio.js';
 
 const bridge = window.AndroidBridge;
 const pending = new Map();
@@ -52,9 +53,16 @@ export function speak(text, { silentWait = true } = {}) {
   }
   stopSpeaking();
   const id = String(++counter);
+  setDuck(true);
   return new Promise((resolve) => {
     let finished = false;
-    const finish = () => { if (!finished) { finished = true; pending.delete(id); resolve(); } };
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      pending.delete(id);
+      if (pending.size === 0) setDuck(false);
+      resolve();
+    };
     pending.set(id, finish);
     // Safety net in case the engine never calls back.
     setTimeout(finish, fallbackMs * 2.2 + 1500);

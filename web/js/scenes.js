@@ -6,7 +6,7 @@ import {
 } from './gfx.js';
 import { PLANETS, ORDER, faceRotation } from './data.js';
 import { tween, wait, guard, clamp, lerp, smooth, easeOutCubic, easeInCubic, easeInOutCubic } from './util.js';
-import { setRumble, sfx } from './audio.js';
+import { setEngine, sfx } from './audio.js';
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 
@@ -341,7 +341,7 @@ export class LaunchScene {
     const alt = r.position.y - this.rocketBaseY;
     this.fade = clamp((alt - 25) / 135, 0, 1);
     this.applyFade();
-    setRumble(thrust * (1 - this.fade) * 0.9);
+    setEngine(this.ignition >= 0 ? 1 - this.fade : 0, thrust);
 
     // engine light
     const base = r.localToWorld(V3(0, -0.5, 0));

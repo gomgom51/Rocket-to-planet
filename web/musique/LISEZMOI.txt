@@ -1,0 +1,10 @@
+Déposez ici les 3 musiques du jeu, au format MP3, avec exactement ces noms :
+
+  accueil.mp3    écran d'accueil et choix de la planète (jouée en boucle)
+  voyage.mp3     voyage dans l'espace (jouée en boucle)
+  victoire.mp3   écran de victoire (jouée une fois)
+
+Pas de musique pendant le décollage.
+Si un fichier manque, le jeu utilise sa petite musique douce de secours.
+La musique baisse automatiquement quand la voix parle.
+Les prompts Suno sont dans docs/musique-suno.md.

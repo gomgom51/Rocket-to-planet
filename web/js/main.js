@@ -5,7 +5,7 @@ import { HomeScene, LaunchScene, TravelScene, VictoryScene, renderThumbnails } f
 import { PLANETS, DESTINATIONS, ORDER, NUMBERS, TEXT } from './data.js';
 import { settings, saveSettings, getVisited, addVisited } from './settings.js';
 import { speak, stopSpeaking } from './voice.js';
-import { unlockAudio, applyVolume, sfx, setRumble, setMusic, suspendAudio, resumeAudio } from './audio.js';
+import { unlockAudio, applyVolume, sfx, stopEngine, preloadSounds, playMusic, preloadMusic, hasTrack, hasLaunchSound, audioState, suspendAudio, resumeAudio } from './audio.js';
 import { timeScale, newFlow, cancelFlow, guard, Cancelled, updateTweens, wait } from './util.js';
 
 const $ = (id) => document.getElementById(id);
@@ -108,16 +108,17 @@ function buildGrid() {
 function goHome() {
   cancelFlow();
   stopSpeaking();
-  setRumble(0);
+  stopEngine();
   hideDialog();
   $('confirm').classList.remove('active');
   scenes.travel.removePlanet();
   setScene(scenes.home);
   show('home');
-  setMusic(true);
+  playMusic('accueil');
 }
 
 function goChoose() {
+  playMusic('accueil');
   buildGrid();
   setScene(scenes.home);
   show('choose');
@@ -229,7 +230,7 @@ async function playRound(destId) {
   const T = PLANETS[destId];
   const name = settings.name.trim();
   try {
-    setMusic(false);
+    playMusic(null); // no music on the launch pad
     await fade(true); guard(id);
     // --- launch pad
     scenes.launch.reset();
@@ -250,12 +251,12 @@ async function playRound(destId) {
 
     // --- space
     await fade(true); guard(id);
-    setRumble(0);
+    stopEngine();
     $('countdown').textContent = '';
     scenes.travel.reset();
     setScene(scenes.travel);
     await fade(false); guard(id);
-    setMusic(true);
+    playMusic('voyage');
     const space = TEXT.space();
     banner(space);
     speak(space, { silentWait: false });
@@ -318,9 +319,10 @@ async function playRound(destId) {
     document.querySelector('.victory-foot').classList.remove('ready');
     buildMapLabels(destId);
     show('victory');
+    playMusic('victoire');
     await fade(false); guard(id);
     await scenes.victory.play(id); guard(id);
-    sfx.victory();
+    if (!hasTrack('victoire')) sfx.victory();
     confetti.start();
     $('v-fact').classList.add('show');
     document.querySelector('.victory-foot').classList.add('ready');
@@ -417,6 +419,7 @@ function openSettings() {
   $('set-name').value = settings.name;
   $('set-voice').checked = settings.voice;
   $('set-sound').checked = settings.sound;
+  $('set-music').checked = settings.music !== false;
   $('set-volume').value = settings.volume;
   $('set-hint').checked = settings.hint;
   document.querySelectorAll('.seg').forEach((seg) => {
@@ -429,6 +432,7 @@ function closeSettings() {
   settings.name = $('set-name').value.slice(0, 20);
   settings.voice = $('set-voice').checked;
   settings.sound = $('set-sound').checked;
+  settings.music = $('set-music').checked;
   settings.volume = parseFloat($('set-volume').value);
   settings.hint = $('set-hint').checked;
   saveSettings();
@@ -448,11 +452,14 @@ document.querySelectorAll('.seg').forEach((seg) => {
 });
 $('set-volume').addEventListener('input', () => { settings.volume = parseFloat($('set-volume').value); applyVolume(); });
 $('set-sound').addEventListener('change', () => { settings.sound = $('set-sound').checked; applyVolume(); });
+$('set-music').addEventListener('change', () => { settings.music = $('set-music').checked; applyVolume(); });
+// Browsers only allow sound after a first touch: resume audio on any touch.
+document.addEventListener('pointerdown', () => unlockAudio(), { passive: true });
 
 // ---------------------------------------------------------------------------
 // Buttons
 // ---------------------------------------------------------------------------
-$('play').addEventListener('click', () => { unlockAudio(); sfx.tap(); setMusic(true); goChoose(); });
+$('play').addEventListener('click', () => { unlockAudio(); sfx.tap(); goChoose(); });
 $('go').addEventListener('click', () => { if (!selected) return; unlockAudio(); sfx.tap(); playRound(selected); });
 document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { sfx.tap(); stopSpeaking(); goHome(); }));
 $('settings-btn').addEventListener('click', () => { unlockAudio(); openSettings(); });
@@ -520,6 +527,9 @@ function frame() {
   Object.values(scenes).forEach((s) => { s.resize(W, H); renderer.compile(s.scene, s.camera); });
   frame();
   show('home');
+  preloadMusic();
+  preloadSounds();
+  playMusic('accueil'); // starts at once in the app, after the first touch in a browser
   window.game = {
     scenes, playRound, goHome, goChoose, answer, settings, get screen() { return screen; },
     // test helpers: jump straight to a scene
@@ -530,6 +540,8 @@ function frame() {
         scenes.travel.planet.group.position.copy(scenes.travel.inspectPos);
       },
       launch() { cancelFlow(); scenes.launch.reset(); setScene(scenes.launch); show('hud'); },
+      audio: () => audioState(),
+      music: () => ({ accueil: hasTrack('accueil'), voyage: hasTrack('voyage'), victoire: hasTrack('victoire'), decollage: hasLaunchSound() }),
       step(dt, n = 1) { for (let i = 0; i < n; i++) { updateTweens(dt); current.update(dt); } if (current === scenes.victory) updateMapLabels(); renderer.render(current.scene, current.camera); },
       victory(dest) { cancelFlow(); scenes.victory.setup(dest); setScene(scenes.victory); buildMapLabels(dest); show('victory'); scenes.victory.progress = 1; },
     },

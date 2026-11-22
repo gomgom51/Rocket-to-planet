@@ -46,11 +46,25 @@ Les planètes déjà visitées reçoivent une étoile dorée dans le menu.
 Roue dentée ⚙ en haut à droite de l’écran d’accueil :
 
 * **Prénom** de l’enfant (« Bravo Léa ! »)
-* Voix on/off, sons on/off, volume
+* Voix on/off, sons on/off, musique on/off, volume
 * Compte à rebours de **5 ou 10**
 * **Nombre de planètes à passer** avant la bonne : 0, 1, 2, 3 ou au hasard
 * **Aide** : afficher l’image de la planète cherchée dans la question (pour
   commencer, ou si c’est trop difficile)
+
+## Musiques et son du décollage
+
+Le jeu peut jouer vos propres fichiers MP3 (sinon il garde ses sons de secours) :
+
+* `web/musique/accueil.mp3`, `web/musique/voyage.mp3`, `web/musique/victoire.mp3`
+  (prompts Suno prêts à copier : [docs/musique-suno.md](docs/musique-suno.md))
+* `web/sons/decollage.mp3` : un vrai son de décollage
+
+Pour les ajouter : sur GitHub, ouvrir le dossier `web/musique` (ou `web/sons`)
+de la branche, *Add file → Upload files*, puis valider. GitHub fabrique
+automatiquement un nouvel APK (2 à 3 minutes), à télécharger avec le même lien.
+La musique baisse automatiquement quand la voix parle, et un réglage
+« Musique » permet de la couper.
 
 ## Installer l’application sur le téléphone Android
 

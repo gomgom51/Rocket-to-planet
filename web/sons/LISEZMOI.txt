@@ -1,0 +1,10 @@
+Déposez ici le son réaliste du décollage, au format MP3 :
+
+  decollage.mp3
+
+Le son démarre à l'allumage du moteur (3 secondes avant zéro) et s'atténue
+quand la fusée arrive dans l'espace (environ 11 secondes plus tard).
+Choisissez un enregistrement de 12 à 20 secondes qui commence à l'allumage,
+sans compte à rebours parlé (le jeu fait déjà le sien).
+Le jeu adoucit automatiquement les aigus et évite les pics de volume.
+Si le fichier manque, le jeu utilise son moteur synthétisé.
