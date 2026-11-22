@@ -56,9 +56,9 @@ Roue dentée ⚙ en haut à droite de l’écran d’accueil :
 
 L’APK est fabriqué automatiquement par GitHub Actions à chaque modification.
 
-1. Sur le téléphone, ouvrir la page **Releases** du dépôt GitHub et télécharger
-   le fichier **`FuseePlanetes.apk`** de la dernière version
-   (lien direct : `https://github.com/<compte>/<dépôt>/releases/latest/download/FuseePlanetes.apk`).
+1. Sur le téléphone, ouvrir ce lien pour télécharger la dernière version :
+   **https://github.com/gomgom51/Rocket-to-planet/releases/latest/download/FuseePlanetes.apk**
+   (ou la page [Releases](https://github.com/gomgom51/Rocket-to-planet/releases) du dépôt).
 2. Ouvrir le fichier téléchargé. Android demande d’autoriser l’installation
    d’applications provenant de cette source (le navigateur ou « Fichiers ») :
    accepter, puis **Installer**.
