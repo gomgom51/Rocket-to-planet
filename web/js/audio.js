@@ -99,6 +99,44 @@ export const sfx = {
     melody.forEach(([n, t]) => bell(NOTE(n), t, 1.6, 0.13));
     [[60, 0], [64, 0.6], [67, 1.3]].forEach(([n, t]) => bell(NOTE(n), t, 2.2, 0.07));
   },
+  catchStar() { if (ok()) [84, 88, 91, 96].forEach((n, i) => bell(NOTE(n), i * 0.05, 0.6, 0.07)); },
+  hello() { if (ok()) { bell(NOTE(79), 0, 0.5, 0.12); bell(NOTE(76), 0.28, 0.7, 0.12); } },
+  melody() { if (ok()) [72, 76, 79, 77, 84].forEach((n, i) => bell(NOTE(n), i * 0.13, 0.6, 0.09)); },
+  unlock() { if (ok()) [72, 79, 76, 84, 88, 91].forEach((n, i) => bell(NOTE(n), i * 0.12, 1.4, 0.1)); },
+  boing() {
+    if (!ok()) return;
+    const t0 = now();
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(220, t0);
+    o.frequency.exponentialRampToValueAtTime(520, t0 + 0.25);
+    o.frequency.exponentialRampToValueAtTime(300, t0 + 0.6);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.7);
+    o.connect(g).connect(master);
+    o.start(t0);
+    o.stop(t0 + 0.75);
+  },
+  shutter() {
+    if (!ok()) return;
+    const t0 = now();
+    [0, 0.09].forEach((dt) => {
+      const src = noiseSource(0.2);
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = 2400;
+      f.Q.value = 0.8;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.25, t0 + dt + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.06);
+      src.connect(f).connect(g).connect(master);
+      src.start(t0 + dt);
+      src.stop(t0 + dt + 0.1);
+    });
+  },
   whoosh() {
     if (!ok()) return;
     const t0 = now();

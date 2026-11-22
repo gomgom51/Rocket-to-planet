@@ -4,7 +4,9 @@ import {
   THREE, createSky, createPlanet, createRocket, Particles, glowTexture,
   placeAtScreen, distanceForSize,
 } from './gfx.js';
-import { PLANETS, ORDER, faceRotation } from './data.js';
+import { PLANETS, ORDER, faceRotation, TEXT } from './data.js';
+import { getStyle } from './progress.js';
+import { settings } from './settings.js';
 import { tween, wait, guard, clamp, lerp, smooth, easeOutCubic, easeInCubic, easeInOutCubic } from './util.js';
 import { setEngine, sfx } from './audio.js';
 
@@ -28,12 +30,14 @@ export class HomeScene {
     this.earth.body.rotation.y = faceRotation(PLANETS.earth);
     this.scene.add(this.earth.group);
     // a tiny rocket orbiting the Earth
-    this.rocket = createRocket();
+    this.rocket = createRocket(getStyle(), settings.name.trim());
     this.rocket.scale.setScalar(0.32);
     this.rocket.userData.setThrust(0.5);
     this.scene.add(this.rocket);
     this.t = 0;
   }
+
+  restyle() { this.rocket.userData.applyStyle(getStyle(), settings.name.trim()); }
 
   resize(w, h) {
     this.camera.aspect = w / h;
@@ -197,7 +201,7 @@ export class LaunchScene {
     });
 
     // rocket
-    this.rocket = createRocket();
+    this.rocket = createRocket(getStyle(), settings.name.trim());
     this.rocketBaseY = 0.38 + 0.4;
     this.scene.add(this.rocket);
     this.engineLight = new THREE.PointLight(0xffa04a, 0, 30, 1.6);
@@ -259,7 +263,10 @@ export class LaunchScene {
     this.scene.add(this.arm);
   }
 
+  restyle() { this.rocket.userData.applyStyle(getStyle(), settings.name.trim()); }
+
   reset() {
+    this.restyle();
     this.t = 0;
     this.phase = 'count';
     this.ignition = -1;
@@ -421,8 +428,17 @@ export class TravelScene {
     light.position.copy(this.sunDir).multiplyScalar(500);
     this.scene.add(light, new THREE.AmbientLight(0x8090b0, 0.18));
 
-    this.rocket = createRocket();
+    this.rocket = createRocket(getStyle(), settings.name.trim());
     this.scene.add(this.rocket);
+
+    // encounters: objects placed in camera space, timed animations, taps
+    this.fx = new THREE.Group();
+    this.scene.add(this.fx);
+    this.timed = [];
+    this.tapHandler = null;
+    this.raycaster = new THREE.Raycaster();
+    this.width = 1;
+    this.height = 1;
 
     // speed lines (space dust streaking past)
     const n = 260;
@@ -481,7 +497,27 @@ export class TravelScene {
     return quat.copy(q2.multiply(q1));
   }
 
+  setTapHandler(fn) { this.tapHandler = fn; }
+  onTap(x, y) { if (this.tapHandler) this.tapHandler(x, y); }
+
+  // Run onUpdate(k, obj, t, dt) for `duration` seconds; resolves at the end.
+  addTimed(obj, duration, onUpdate, onDone) {
+    if (obj && !obj.parent) this.fx.add(obj);
+    return new Promise((resolve) => { this.timed.push({ obj, d: duration, t: 0, onUpdate, onDone, resolve }); });
+  }
+
+  clearFx() {
+    for (const e of this.timed) { if (e.onDone) e.onDone(); }
+    this.timed = [];
+    this.fx.clear();
+    this.tapHandler = null;
+  }
+
+  restyle() { this.rocket.userData.applyStyle(getStyle(), settings.name.trim()); }
+
   reset() {
+    this.clearFx();
+    this.restyle();
     this.t = 0;
     this.speed = 60;
     this.targetSpeed = 60;
@@ -499,6 +535,8 @@ export class TravelScene {
   }
 
   resize(w, h) {
+    this.width = w;
+    this.height = h;
     this.camera.aspect = w / h;
     this.portrait = w < h;
     this.camera.updateProjectionMatrix();
@@ -521,7 +559,7 @@ export class TravelScene {
 
   // Inspection spot: planet big in the upper part of the screen.
   inspection(def) {
-    const frame = def.rings ? 2.4 : 1.12;
+    const frame = def.kind === 'comet' ? 1.75 : def.rings ? 2.4 : 1.12;
     const frac = this.portrait ? 0.84 : 0.5;
     const cam = this.camera;
     cam.position.copy(this.camBase);
@@ -541,6 +579,8 @@ export class TravelScene {
     this.def = def;
     this.planet = createPlanet(def, tex, { radius: 10, segments: 96, ringTex: this.assets.rings });
     this.planet.setSun(this.sunDir);
+    // a comet's tail points away from the Sun: turn it sideways so it shows
+    if (def.kind === 'comet') this.planet.setSun(V3(0.85, 0.35, 0.4));
     this.planet.body.rotation.y = faceRotation(def) - 0.35;
     this.inspectPos = this.inspection(def);
     this.planet.group.position.copy(this.camBase).addScaledVector(this.inspectDir, 2600);
@@ -664,6 +704,184 @@ export class TravelScene {
     this.camera.quaternion.copy(this.baseQuat);
     if (this.lookAtC) this.camera.quaternion.slerp(this.lookAtC, this.lookMix);
     this.sky.position.copy(this.camera.position);
+
+    // timed effects, then objects that live in camera space
+    for (let i = this.timed.length - 1; i >= 0; i--) {
+      const e = this.timed[i];
+      if (!e) continue;
+      e.t += dt;
+      const k = Math.min(1, e.t / e.d);
+      if (e.onUpdate) e.onUpdate(k, e.obj, e.t, dt);
+      if (k >= 1) {
+        this.timed.splice(this.timed.indexOf(e), 1);
+        if (e.obj && e.obj.parent) e.obj.parent.remove(e.obj);
+        if (e.onDone) e.onDone();
+        e.resolve();
+      }
+    }
+    this.camera.updateMatrixWorld();
+    for (const o of this.fx.children) {
+      if (!o.userData.local) continue;
+      o.position.copy(o.userData.local).applyMatrix4(this.camera.matrixWorld);
+      if (o.userData.camAligned) o.quaternion.copy(this.camera.quaternion);
+    }
+  }
+
+  // ---- activities in orbit ------------------------------------------------
+  // Texture point (u, v from the top) of the planet under a screen point.
+  pickPlanet(x, y) {
+    if (!this.planet) return null;
+    const ndc = new THREE.Vector2((x / this.width) * 2 - 1, -(y / this.height) * 2 + 1);
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const hit = this.raycaster.intersectObject(this.planet.body, false)[0];
+    return hit && hit.uv ? { u: hit.uv.x, v: 1 - hit.uv.y, point: hit.point } : null;
+  }
+
+  // Is the screen point on (or close to) the planet?
+  nearPlanet(x, y) {
+    if (this.pickPlanet(x, y)) return true;
+    const c = this.planet.group.position.clone().project(this.camera);
+    const cx = (c.x + 1) / 2 * this.width;
+    const cy = (1 - c.y) / 2 * this.height;
+    const e = this.planet.group.position.clone().add(V3(10, 0, 0).applyQuaternion(this.camera.quaternion)).project(this.camera);
+    const r = Math.abs(e.x - c.x) / 2 * this.width;
+    return Math.hypot(x - cx, y - cy) < r * 1.25;
+  }
+
+  static texDir(u, v) {
+    const phi = u * Math.PI * 2;
+    const th = v * Math.PI;
+    return V3(-Math.cos(phi) * Math.sin(th), Math.cos(th), Math.sin(phi) * Math.sin(th));
+  }
+
+  // Turn the planet so that texture point (u, v) faces the camera.
+  async faceCamera(u, v, seconds = 1.4) {
+    const body = this.planet.body;
+    this.planet.spinning = false;
+    const p = TravelScene.texDir(u, v);
+    const tiltGroup = body.parent;
+    tiltGroup.updateMatrixWorld();
+    const d = this.camera.position.clone().sub(this.planet.group.position)
+      .applyQuaternion(tiltGroup.getWorldQuaternion(new THREE.Quaternion()).invert());
+    let target = Math.atan2(d.x, d.z) - Math.atan2(p.x, p.z);
+    const from = body.rotation.y;
+    while (target - from > Math.PI) target -= Math.PI * 2;
+    while (target - from < -Math.PI) target += Math.PI * 2;
+    await tween(seconds, (k) => { body.rotation.y = lerp(from, target, k); }, easeInOutCubic);
+  }
+
+  spotWorld(u, v) {
+    return this.planet.body.localToWorld(TravelScene.texDir(u, v).multiplyScalar(10.4));
+  }
+
+  sparkle(pos, color = 0xffe08a, size = 6) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+    sp.position.copy(pos);
+    return this.addTimed(sp, 1.6, (k) => {
+      const sc = size * (0.4 + k);
+      sp.scale.set(sc, sc, 1);
+      sp.material.opacity = 1 - k;
+    });
+  }
+
+  // Bring the camera back close to the planet (bigger targets for little fingers).
+  zoomIn(seconds = 1.4) {
+    const from = this.camOffset.clone();
+    const mix0 = this.lookMix;
+    return tween(seconds, (k) => {
+      this.camOffset.copy(from).multiplyScalar(1 - k);
+      this.lookMix = lerp(mix0, 1, k);
+    }, easeInOutCubic);
+  }
+
+  async spotActivity(api) {
+    const a = this.def.activity;
+    await Promise.all([this.faceCamera(a.u, a.v), this.zoomIn()]);
+    const intro = TEXT.spotIntro(a.label);
+    api.banner(intro);
+    api.speak(intro);
+    const target = TravelScene.texDir(a.u, a.v);
+    let marker = null;
+    let done = false;
+    const showMarker = () => {
+      if (marker || done) return;
+      marker = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+      this.fx.add(marker);
+      this.addTimed(marker, 3600, (k, o, t) => {
+        o.position.copy(this.spotWorld(a.u, a.v));
+        const sc = 5 + Math.sin(t * 4) * 1.5;
+        o.scale.set(sc, sc, 1);
+        o.material.opacity = 0.55 + 0.35 * Math.sin(t * 4);
+      });
+    };
+    // gentle help if nothing is found after a while
+    (async () => {
+      await wait(12);
+      if (!done) { api.speak(TEXT.spotHint(a.label)); showMarker(); }
+    })();
+    await new Promise((resolve) => {
+      let misses = 0;
+      this.setTapHandler((x, y) => {
+        const hit = this.pickPlanet(x, y);
+        if (!hit || done) return;
+        const angle = Math.acos(clamp(TravelScene.texDir(hit.u, hit.v).dot(target), -1, 1));
+        if (angle < a.radius) {
+          done = true;
+          this.setTapHandler(null);
+          if (marker) marker.visible = false;
+          this.sparkle(this.spotWorld(a.u, a.v), 0xffe08a, 9);
+          api.sfx.good();
+          api.addStars(2, x, y);
+          const found = TEXT.spotFound(a.label);
+          api.banner(found);
+          api.speak(found).then(resolve);
+        } else {
+          misses++;
+          api.sfx.gentle();
+          if (misses === 2) api.speak(TEXT.spotHint(a.label));
+          if (misses >= 3) showMarker();
+        }
+      });
+    });
+    this.planet.spinning = true;
+  }
+
+  async factsActivity(api) {
+    const facts = this.def.facts || [this.def.fact];
+    await this.zoomIn();
+    api.banner(TEXT.factsIntro);
+    api.speak(TEXT.factsIntro);
+    let i = 0;
+    let last = this.t;
+    let finished = false;
+    (async () => {
+      while (!finished) {
+        await wait(10);
+        if (!finished && this.t - last > 9.5) api.speak(TEXT.factsIntro);
+      }
+    })();
+    await new Promise((resolve) => {
+      let busy = false;
+      this.setTapHandler(async (x, y) => {
+        if (busy || !this.nearPlanet(x, y)) return;
+        busy = true;
+        last = this.t;
+        const hit = this.pickPlanet(x, y);
+        this.sparkle(hit ? hit.point : this.planet.group.position, 0xbfe4ff, 7);
+        api.sfx.select();
+        api.addStars(1, x, y);
+        api.banner(facts[i]);
+        await api.speak(facts[i]);
+        i++;
+        last = this.t;
+        busy = false;
+        if (i >= facts.length) {
+          finished = true;
+          this.setTapHandler(null);
+          resolve();
+        }
+      });
+    });
   }
 }
 
@@ -692,13 +910,15 @@ export class VictoryScene {
     this.scene.add(glow);
     this.dynamic = new THREE.Group();
     this.scene.add(this.dynamic);
-    this.rocket = createRocket();
+    this.rocket = createRocket(getStyle(), settings.name.trim());
     this.rocket.scale.setScalar(0.11);
     this.scene.add(this.rocket);
     this.planets = {};
     this.t = 0;
     this.progress = 0;
   }
+
+  restyle() { this.rocket.userData.applyStyle(getStyle(), settings.name.trim()); }
 
   // Angles (in the orbital plane) of the planets that are not part of the trip.
   static angles = { mercury: 3.5, venus: 5.5, mars: 0.55, jupiter: 2.6, saturn: 4.1, uranus: 5.2, neptune: 2.0 };
@@ -713,57 +933,114 @@ export class VictoryScene {
     this.destId = destId;
     const dest = PLANETS[destId];
     const r1 = PLANETS.earth.orbit;
-    const r2 = dest.orbit;
     const thE = Math.PI / 2;    // Earth: bottom of the screen
-    const thD = -Math.PI / 2;   // destination: top
-
-    // orbits
-    for (const id of ORDER) {
-      const def = PLANETS[id];
+    const thD = -Math.PI / 2;   // destination (or its planet): top
+    // a moon travels with its planet; the Moon is next to the Earth
+    const parentId = dest.parent && dest.parent !== 'earth' ? dest.parent : null;
+    const nearEarth = dest.parent === 'earth';
+    const orbitLine = (pts, highlight) => {
+      this.dynamic.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({
+        color: highlight ? 0x9fc4ff : 0x8090b0, transparent: true, opacity: highlight ? 0.55 : 0.22, depthWrite: false,
+      })));
+    };
+    const circle = (r, c = V3()) => {
       const pts = [];
       for (let i = 0; i <= 160; i++) {
         const a = (i / 160) * Math.PI * 2;
-        pts.push(V3(Math.cos(a) * def.orbit, 0, Math.sin(a) * def.orbit));
+        pts.push(V3(c.x + Math.cos(a) * r, 0, c.z + Math.sin(a) * r));
       }
-      const highlight = id === 'earth' || id === destId;
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({
-        color: highlight ? 0x9fc4ff : 0x8090b0, transparent: true, opacity: highlight ? 0.55 : 0.22, depthWrite: false,
-      }));
-      this.dynamic.add(line);
+      return pts;
+    };
+
+    // orbits of the planets (+ Pluto / the comet when they are the destination)
+    for (const id of ORDER) orbitLine(circle(PLANETS[id].orbit), id === 'earth' || id === destId || id === parentId);
+    let cometOrbit = null;
+    if (destId === 'pluto') orbitLine(circle(dest.orbit), true);
+    if (destId === 'comet') {
+      // elongated orbit with the Sun at one focus, passing through the comet
+      const ca = 5.2;
+      const ce = 0.808;
+      const w = thD - 2.42;
+      cometOrbit = (th) => ca * (1 - ce * ce) / (1 + ce * Math.cos(th - w));
+      const pts = [];
+      for (let i = 0; i <= 200; i++) {
+        const th = (i / 200) * Math.PI * 2;
+        const r = cometOrbit(th);
+        pts.push(V3(Math.cos(th) * r, 0, Math.sin(th) * r));
+      }
+      orbitLine(pts, true);
     }
 
     // planets
-    for (const id of ORDER) {
+    const addBody = (id, pos, main) => {
       const def = PLANETS[id];
-      const main = id === 'earth' || id === destId;
-      const th = id === 'earth' ? thE : id === destId ? thD : VictoryScene.angles[id];
       const p = createPlanet(def, this.assets.small[id], { radius: def.mapSize * (main ? 1.25 : 0.85), segments: 40, ringTex: this.assets.rings });
-      p.group.position.set(Math.cos(th) * def.orbit, 0, Math.sin(th) * def.orbit);
+      p.group.position.copy(pos);
       p.setSun(p.group.position.clone().negate());
       p.body.rotation.y = faceRotation(def);
+      if (p.tails) p.tails.scale.setScalar(0.5);
       this.dynamic.add(p.group);
       this.planets[id] = p;
+      return p;
+    };
+    for (const id of ORDER) {
+      const def = PLANETS[id];
+      const main = id === 'earth' || id === destId || id === parentId;
+      const th = id === 'earth' ? thE : (id === destId || id === parentId) ? thD : VictoryScene.angles[id];
+      addBody(id, V3(Math.cos(th) * def.orbit, 0, Math.sin(th) * def.orbit), main);
     }
-    // highlight rings under Earth and the destination
+    let destPos;
+    if (!ORDER.includes(destId)) {
+      if (nearEarth) {
+        destPos = this.planets.earth.group.position.clone().add(V3(0.62, 0, -0.5));
+      } else if (parentId) {
+        const pp = this.planets[parentId].group.position;
+        destPos = pp.clone().add(V3(PLANETS[parentId].rings ? 1.45 : 1.15, 0, 0.3));
+        orbitLine(circle(destPos.distanceTo(pp), pp), true);
+      } else {
+        const r = destId === 'comet' ? cometOrbit(thD) : dest.orbit;
+        destPos = V3(Math.cos(thD) * r, 0, Math.sin(thD) * r);
+      }
+      addBody(destId, destPos, true);
+    }
+    if (nearEarth) orbitLine(circle(destPos.distanceTo(this.planets.earth.group.position), this.planets.earth.group.position), true);
+    destPos = this.planets[destId].group.position.clone();
+
+    // highlight halos under the Earth and the destination
     for (const id of ['earth', destId]) {
       const p = this.planets[id];
       const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color: id === 'earth' ? 0x6fb0ff : 0xffd25a, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.55 }));
-      const s = p.radius * (PLANETS[id].rings ? 6.5 : 4.2);
-      halo.scale.set(s, s, 1);
+      const sc = p.radius * (PLANETS[id].rings ? 6.5 : 4.2);
+      halo.scale.set(sc, sc, 1);
       p.group.add(halo);
       p.halo = halo;
     }
 
-    // transfer orbit (half ellipse, prograde = towards +x first)
-    const a = (r1 + r2) / 2;
-    const e = Math.abs(r2 - r1) / (r1 + r2);
-    const outward = r2 > r1;
+    // route: half transfer ellipse (prograde, towards +x first), then the last
+    // hop to a moon; a short arc for the Moon
     const pts = [];
-    for (let i = 0; i <= 120; i++) {
-      const phi = (i / 120) * Math.PI;
-      const r = a * (1 - e * e) / (1 + (outward ? 1 : -1) * e * Math.cos(phi));
-      const th = thE - phi;
-      pts.push(V3(Math.cos(th) * r, 0.02, Math.sin(th) * r));
+    const earthPos = this.planets.earth.group.position.clone();
+    if (nearEarth) {
+      const ctrl = earthPos.clone().lerp(destPos, 0.5).add(V3(0.55, 0, 0.15));
+      const qb = new THREE.QuadraticBezierCurve3(earthPos, ctrl, destPos);
+      for (let i = 0; i <= 40; i++) pts.push(qb.getPoint(i / 40).setY(0.02));
+    } else {
+      const r2 = Math.hypot((parentId ? this.planets[parentId].group.position : destPos).x, (parentId ? this.planets[parentId].group.position : destPos).z);
+      const a = (r1 + r2) / 2;
+      const e = Math.abs(r2 - r1) / (r1 + r2);
+      const outward = r2 > r1;
+      for (let i = 0; i <= 120; i++) {
+        const phi = (i / 120) * Math.PI;
+        const r = a * (1 - e * e) / (1 + (outward ? 1 : -1) * e * Math.cos(phi));
+        const th = thE - phi;
+        pts.push(V3(Math.cos(th) * r, 0.02, Math.sin(th) * r));
+      }
+      if (parentId) {
+        const last = pts[pts.length - 1];
+        const ctrl = last.clone().add(V3(-0.4, 0, -0.9));
+        const qb = new THREE.QuadraticBezierCurve3(last.clone(), ctrl, destPos.clone().setY(0.02));
+        for (let i = 1; i <= 24; i++) pts.push(qb.getPoint(i / 24));
+      }
     }
     this.curve = new THREE.CatmullRomCurve3(pts);
     this.pathU = { uProgress: { value: 0 }, uTime: { value: 0 } };
@@ -788,7 +1065,8 @@ export class VictoryScene {
     this.progress = 0;
     this.t = 0;
     this.rocket.visible = false;
-    this.fitCamera(pts.concat([this.planets.earth.group.position, this.planets[destId].group.position]));
+    this.restyle();
+    this.fitCamera(pts.concat([this.planets.earth.group.position, this.planets[destId].group.position, V3()]));
   }
 
   fitCamera(points) {
@@ -834,7 +1112,7 @@ export class VictoryScene {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     if (this.curve) {
-      const pts = this.curve.points.concat([this.planets.earth.group.position, this.planets[this.destId].group.position]);
+      const pts = this.curve.points.concat([this.planets.earth.group.position, this.planets[this.destId].group.position, V3()]);
       this.fitCamera(pts);
     }
   }
@@ -920,7 +1198,12 @@ export function renderThumbnails(ids, small, rings, size = 256) {
     p.body.rotation.y = faceRotation(def) + 0.2;
     if (def.rings) p.group.rotation.x = 0.28;
     scene.add(p.group);
-    const frame = def.rings ? 2.42 : 1.16;
+    let frame = def.rings ? 2.42 : 1.16;
+    if (def.kind === 'comet') {
+      // small nucleus in the upper left, tail across the picture
+      frame = 3.4;
+      p.group.position.set(-1.5, 1.3, 0);
+    }
     cam.position.set(0, 0, frame / Math.tan(THREE.MathUtils.degToRad(15)));
     cam.lookAt(0, 0, 0);
     p.update(0);

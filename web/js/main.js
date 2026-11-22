@@ -2,10 +2,21 @@
 
 import { THREE, loadTexture, releaseTexture, planetTexUrl } from './gfx.js';
 import { HomeScene, LaunchScene, TravelScene, VictoryScene, renderThumbnails } from './scenes.js';
-import { PLANETS, DESTINATIONS, ORDER, NUMBERS, TEXT } from './data.js';
-import { settings, saveSettings, getVisited, addVisited } from './settings.js';
+import { MarsActivity, RingsActivity, MoonActivity } from './activities.js';
+import { ENCOUNTERS } from './encounters.js';
+import { GarageScene, buildCarnet, buildGarage, fmtDate } from './screens.js';
+import {
+  PLANETS, DESTINATIONS, BONUS, ORDER, ALL_BODIES, NUMBERS, TEXT, FEATURES, QUIZZES, cap, pick,
+} from './data.js';
+import { settings, saveSettings } from './settings.js';
+import {
+  progress, addStars, onStars, recordVisit, visitCount, visitedBase, bonusUnlocked, newDecors, markDecorsSeen, addPhoto, saveProgress,
+} from './progress.js';
 import { speak, stopSpeaking } from './voice.js';
-import { unlockAudio, applyVolume, sfx, stopEngine, preloadSounds, playMusic, preloadMusic, hasTrack, hasLaunchSound, audioState, suspendAudio, resumeAudio } from './audio.js';
+import {
+  unlockAudio, applyVolume, sfx, stopEngine, preloadSounds, playMusic, preloadMusic, hasTrack, hasLaunchSound, audioState,
+  suspendAudio, resumeAudio,
+} from './audio.js';
 import { timeScale, newFlow, cancelFlow, guard, Cancelled, updateTweens, wait } from './util.js';
 
 const $ = (id) => document.getElementById(id);
@@ -37,6 +48,12 @@ function setScene(s) {
   s.resize(W, H);
 }
 
+// Taps on the 3D view go to the current scene (stars, rocks, crystals…).
+canvas.addEventListener('pointerdown', (e) => {
+  unlockAudio();
+  if (current && current.onTap) current.onTap(e.clientX, e.clientY);
+});
+
 // ---------------------------------------------------------------------------
 // Screens
 // ---------------------------------------------------------------------------
@@ -44,11 +61,48 @@ let screen = 'loading';
 function show(id) {
   document.querySelectorAll('.screen').forEach((el) => el.classList.toggle('active', el.id === id));
   screen = id;
+  document.body.dataset.screen = id;
 }
 const fadeEl = $('fade');
 async function fade(on) {
   fadeEl.classList.toggle('on', on);
   await new Promise((r) => setTimeout(r, 650));
+}
+
+// ---------------------------------------------------------------------------
+// Stars
+// ---------------------------------------------------------------------------
+const starEl = $('star-count');
+function updateStarCount(pop) {
+  starEl.querySelector('span').textContent = String(progress.stars);
+  if (pop) {
+    starEl.classList.remove('pop');
+    void starEl.offsetWidth;
+    starEl.classList.add('pop');
+  }
+}
+onStars(() => updateStarCount(true));
+
+// Give stars, with a little star flying from (x, y) to the counter.
+function giveStars(n = 1, x, y) {
+  const r = starEl.getBoundingClientRect();
+  const sx = x !== undefined ? x : W / 2;
+  const sy = y !== undefined ? y : H / 2;
+  for (let i = 0; i < n; i++) {
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 24 24');
+    s.setAttribute('class', 'flying-star');
+    s.innerHTML = '<path d="M12 2.5l2.9 6.2 6.8.7-5.1 4.6 1.5 6.7L12 17.3l-6.1 3.4 1.5-6.7-5.1-4.6 6.8-.7z"/>';
+    s.style.left = `${sx - 17}px`;
+    s.style.top = `${sy - 17}px`;
+    document.body.appendChild(s);
+    setTimeout(() => {
+      s.style.transform = `translate(${r.left + 14 - sx}px, ${r.top + 14 - sy}px) scale(0.6)`;
+      s.style.opacity = '0.2';
+    }, 30 + i * 120);
+    setTimeout(() => s.remove(), 950 + i * 120);
+  }
+  setTimeout(() => addStars(n), 700);
 }
 
 // ---------------------------------------------------------------------------
@@ -59,11 +113,11 @@ let thumbs = {};
 
 async function loadAll() {
   const jobs = [
-    ['milkyway', 'textures/milkyway.jpg', true],
-    ['rings', 'textures/saturn_rings.png', true],
-    ['earth', planetTexUrl('earth'), true],
+    ['milkyway', 'textures/milkyway.jpg'],
+    ['rings', 'textures/saturn_rings.png'],
+    ['earth', planetTexUrl('earth')],
   ];
-  ORDER.concat(['sun']).forEach((id) => jobs.push(['small:' + id, planetTexUrl(id, true), true]));
+  ALL_BODIES.concat(['sun']).forEach((id) => jobs.push(['small:' + id, planetTexUrl(id, true)]));
   let done = 0;
   await Promise.all(jobs.map(async ([key, url]) => {
     const t = await loadTexture(url);
@@ -72,27 +126,28 @@ async function loadAll() {
     done++;
     $('bar-fill').style.width = `${Math.round((done / jobs.length) * 90)}%`;
   }));
-  thumbs = renderThumbnails(ORDER, assets.small, assets.rings);
+  // the name painted on the rocket uses the game font
+  try { await document.fonts.load('900 100px Nunito'); } catch (e) { /* ignore */ }
+  thumbs = renderThumbnails(ALL_BODIES, assets.small, assets.rings);
   $('bar-fill').style.width = '100%';
 }
 
 // ---------------------------------------------------------------------------
-// Home + choose screens
+// Home, choose, carnet, garage
 // ---------------------------------------------------------------------------
 let selected = null;
+const STAR_SVG = '<svg class="star" viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.2 6.8.7-5.1 4.6 1.5 6.7L12 17.3l-6.1 3.4 1.5-6.7-5.1-4.6 6.8-.7z"/></svg>';
 
 function buildGrid() {
   const grid = $('planet-grid');
   grid.innerHTML = '';
-  const visited = getVisited();
-  for (const id of DESTINATIONS) {
+  const card = (id) => {
     const p = PLANETS[id];
-    const card = document.createElement('button');
-    card.className = 'planet-card' + (selected === id ? ' selected' : '');
-    card.dataset.id = id;
-    card.innerHTML = `<img src="${thumbs[id]}" alt=""><div class="name">${p.name}</div>` +
-      (visited.has(id) ? '<svg class="star" viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.2 6.8.7-5.1 4.6 1.5 6.7L12 17.3l-6.1 3.4 1.5-6.7-5.1-4.6 6.8-.7z"/></svg>' : '');
-    card.addEventListener('click', () => {
+    const el = document.createElement('button');
+    el.className = 'planet-card' + (selected === id ? ' selected' : '');
+    el.dataset.id = id;
+    el.innerHTML = `<img src="${thumbs[id]}" alt=""><div class="name">${cap(p.name)}</div>` + (visitCount(id) ? STAR_SVG : '');
+    el.addEventListener('click', () => {
       unlockAudio();
       selected = id;
       grid.querySelectorAll('.planet-card').forEach((c) => c.classList.toggle('selected', c.dataset.id === id));
@@ -100,29 +155,80 @@ function buildGrid() {
       sfx.select();
       speak(TEXT.chosen(p), { silentWait: false });
     });
-    grid.appendChild(card);
+    grid.appendChild(el);
+  };
+  DESTINATIONS.forEach(card);
+  if (bonusUnlocked()) {
+    const sep = document.createElement('div');
+    sep.className = 'grid-sep';
+    sep.textContent = 'Destinations bonus';
+    grid.appendChild(sep);
+    BONUS.forEach(card);
+  } else {
+    const el = document.createElement('div');
+    el.className = 'planet-card locked-card';
+    el.innerHTML = `<div class="big">🔒</div>Encore ${7 - visitedBase()} planète${7 - visitedBase() > 1 ? 's' : ''} à visiter pour des surprises !`;
+    grid.appendChild(el);
   }
   $('go').disabled = !selected;
+}
+
+function hideTransient() {
+  hideDialog();
+  hideBanner();
+  hideLabel();
+  hideAction();
+  $('photo-btn').classList.remove('show');
+  $('polaroid').classList.remove('show');
+  $('confirm').classList.remove('active');
+  $('celebrate').classList.remove('active');
 }
 
 function goHome() {
   cancelFlow();
   stopSpeaking();
   stopEngine();
-  hideDialog();
-  $('confirm').classList.remove('active');
+  hideTransient();
+  confetti.stop();
+  scenes.travel.clearFx();
   scenes.travel.removePlanet();
+  scenes.home.restyle();
   setScene(scenes.home);
   show('home');
   playMusic('accueil');
 }
 
 function goChoose() {
+  cancelFlow();
+  hideTransient();
   playMusic('accueil');
   buildGrid();
+  scenes.home.restyle();
   setScene(scenes.home);
   show('choose');
   speak(TEXT.choose, { silentWait: false });
+}
+
+function goCarnet() {
+  cancelFlow();
+  stopSpeaking();
+  hideTransient();
+  confetti.stop();
+  buildCarnet(thumbs);
+  setScene(scenes.home);
+  show('carnet');
+  playMusic('accueil');
+  speak(`Ton carnet de bord ! Tu as ${progress.stars} étoile${progress.stars > 1 ? 's' : ''}.`, { silentWait: false });
+}
+
+function goGarage() {
+  cancelFlow();
+  hideTransient();
+  scenes.garage.restyle();
+  setScene(scenes.garage);
+  show('garage');
+  buildGarage(() => scenes.garage.restyle(), sfx, speak);
+  speak('Décore ta fusée !', { silentWait: false });
 }
 
 // ---------------------------------------------------------------------------
@@ -134,10 +240,9 @@ let lastQuestion = '';
 
 function setDestChip(id) {
   const p = PLANETS[id];
-  const img = settings.hint ? `<img src="${thumbs[id]}" alt="">` :
+  const img = settings.hint ? `<img src="${thumbs[id]}" alt="">` :
     '<svg class="target-ico" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm0-14a6 6 0 1 0 6 6 6 6 0 0 0-6-6zm0 10a4 4 0 1 1 4-4 4 4 0 0 1-4 4zm0-6a2 2 0 1 0 2 2 2 2 0 0 0-2-2z"/></svg>';
-  $('dest-chip').innerHTML = `${img}<span>${p.name}</span>`;
-  $('dest-chip').style.visibility = 'visible';
+  $('dest-chip').innerHTML = `${img}<span>${cap(p.name)}</span>`;
 }
 
 function showCount(n) {
@@ -172,12 +277,22 @@ function banner(text) {
 }
 function hideBanner() { $('banner').classList.remove('show'); }
 
+let actionFn = null;
+function showAction(label, fn) {
+  const b = $('action-btn');
+  b.textContent = label;
+  actionFn = fn;
+  b.classList.add('show');
+}
+function hideAction() { $('action-btn').classList.remove('show'); actionFn = null; }
+$('action-btn').addEventListener('click', () => { unlockAudio(); if (actionFn) actionFn(); });
+
 function ask(question, targetId) {
   lastQuestion = question;
   $('dialog-text').textContent = question;
   $('dialog-hint').src = thumbs[targetId];
   dialog.classList.toggle('with-hint', settings.hint);
-  dialog.classList.remove('feedback');
+  dialog.classList.remove('feedback', 'quiz');
   $('yes').disabled = false;
   $('no').disabled = false;
   dialog.classList.add('show');
@@ -206,6 +321,61 @@ function answer(value) {
   r(value);
 }
 
+// Picture quiz from the on-board computer: errorless, try until right.
+function quiz(T) {
+  const usable = QUIZZES.filter((q) => q.answer === 'TARGET' ? ORDER.includes(T.id) || bonusUnlocked() : true);
+  const q = pick(usable);
+  const answerId = q.answer === 'TARGET' ? T.id : q.answer;
+  const pool = (ORDER.includes(answerId) ? ORDER : ALL_BODIES).filter((id) => id !== answerId && !q.notWith.includes(id) && id !== 'comet');
+  const options = shuffle([answerId, ...shuffle(pool.slice()).slice(0, 2)]);
+  const text = typeof q.q === 'function' ? q.q(T) : q.q;
+  lastQuestion = text;
+  $('dialog-text').textContent = text;
+  dialog.classList.remove('feedback', 'with-hint');
+  dialog.classList.add('quiz', 'show');
+  const box = $('quiz-options');
+  box.innerHTML = '';
+  const maxSize = Math.max(...options.map((id) => PLANETS[id].size));
+  return new Promise((resolve) => {
+    let done = false;
+    options.forEach((id) => {
+      const b = document.createElement('button');
+      b.className = 'quiz-opt';
+      const scale = q.scaled ? Math.max(0.3, Math.sqrt(PLANETS[id].size / maxSize)) : 1;
+      b.innerHTML = `<div class="qimg"><img src="${thumbs[id]}" alt="" style="transform:scale(${scale.toFixed(2)})"></div><div class="name">${cap(PLANETS[id].name)}</div>`;
+      b.addEventListener('click', async () => {
+        if (done || b.classList.contains('wrong')) return;
+        unlockAudio();
+        if (id === answerId) {
+          done = true;
+          b.classList.add('right');
+          sfx.good();
+          const r = b.getBoundingClientRect();
+          giveStars(1, r.left + r.width / 2, r.top + r.height / 2);
+          await speak(TEXT.quizGood(PLANETS[id]));
+          resolve();
+        } else {
+          b.classList.add('wrong');
+          sfx.gentle();
+          speak(TEXT.quizWrong(PLANETS[id]), { silentWait: false });
+        }
+      });
+      box.appendChild(b);
+    });
+    speak(text, { silentWait: false });
+  });
+}
+
+// "Does it have rings?" style question about the planet in front.
+function pickFeature(P, T) {
+  const valid = FEATURES.filter((f) => !f.avoid.includes(P.id));
+  const yesF = valid.filter((f) => f.yes.includes(P.id));
+  const targetF = valid.filter((f) => f.yes.includes(T.id) && !f.yes.includes(P.id));
+  if (yesF.length && (Math.random() < 0.5 || !targetF.length)) return pick(yesF);
+  if (targetF.length) return pick(targetF);
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // The game
 // ---------------------------------------------------------------------------
@@ -218,12 +388,147 @@ function shuffle(a) {
 }
 
 function buildStops(dest) {
-  const n = settings.stops === 'random' ? 1 + Math.floor(Math.random() * 3) : Math.max(0, Math.min(3, Number(settings.stops) || 0));
-  const others = shuffle(DESTINATIONS.filter((d) => d !== dest)).slice(0, n);
+  const n = settings.stops === 'random' ? 1 + Math.floor(Math.random() * 3) : Math.max(0, Math.min(3, Number(settings.stops) || 0));
+  const pool = DESTINATIONS.concat(bonusUnlocked() ? BONUS : []).filter((d) => d !== dest);
+  const others = shuffle(pool).slice(0, n);
   return [...others, dest];
 }
 
-const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// Everything scenes may use during encounters and activities.
+const api = {
+  speak: (t, o) => speak(t, o),
+  banner,
+  hideBanner,
+  sfx,
+  wait,
+  addStars: (n, x, y) => giveStars(n, x, y),
+  showButton: showAction,
+  hideButton: hideAction,
+  textures: {},
+};
+
+async function runEncounter(id, T, used) {
+  const all = ['shootingStars', 'station', 'ship', 'quiz', 'asteroids', 'comet'];
+  const choices = all.filter((e) => !used.includes(e) && !(e === 'comet' && T.id === 'comet'));
+  if (!choices.length) return;
+  // shooting stars are the favourite: a bit more often
+  const kind = Math.random() < 0.3 && choices.includes('shootingStars') ? 'shootingStars' : pick(choices);
+  used.push(kind);
+  if (kind === 'quiz') {
+    banner(TEXT.quizIntro);
+    await speak(TEXT.quizIntro); guard(id);
+    hideBanner();
+    await quiz(T); guard(id);
+    await wait(0.6); guard(id);
+    hideDialog();
+  } else {
+    await ENCOUNTERS[kind](scenes.travel, api); guard(id);
+  }
+}
+
+async function photoStep(id, T) {
+  banner(TEXT.photo);
+  speak(TEXT.photo, { silentWait: false });
+  const btn = $('photo-btn');
+  btn.classList.add('show');
+  let taken = false;
+  (async () => {
+    while (!taken) {
+      await wait(12);
+      if (!taken) speak(TEXT.photo, { silentWait: false });
+    }
+  })();
+  await new Promise((resolve) => {
+    btn.onclick = () => {
+      if (taken) return;
+      taken = true;
+      unlockAudio();
+      resolve();
+    };
+  });
+  guard(id);
+  btn.classList.remove('show');
+  hideBanner();
+  sfx.shutter();
+  const data = capturePhoto(T);
+  $('flash').classList.add('on');
+  setTimeout(() => $('flash').classList.remove('on'), 60);
+  if (data) {
+    addPhoto(T.id, data);
+    $('polaroid').querySelector('img').src = data;
+    $('polaroid').classList.add('show');
+  }
+  giveStars(1, W / 2, H * 0.7);
+  await Promise.all([speak(TEXT.photoDone), wait(2.6)]); guard(id);
+  $('polaroid').classList.remove('show');
+  await wait(0.4); guard(id);
+}
+
+// Picture of the current 3D view in a white "instant photo" frame.
+function capturePhoto(T) {
+  try {
+    renderer.render(current.scene, current.camera);
+    const src = renderer.domElement;
+    const cw = src.width;
+    const ch = src.height;
+    const size = Math.min(cw, ch * 0.62);
+    const sx = (cw - size) / 2;
+    const sy = Math.max(0, ch * 0.45 - size / 2);
+    const out = document.createElement('canvas');
+    const S = 440;
+    out.width = S + 40;
+    out.height = S + 120;
+    const g = out.getContext('2d');
+    g.fillStyle = '#fbfaf6';
+    g.fillRect(0, 0, out.width, out.height);
+    g.drawImage(src, sx, sy, size, size, 20, 20, S, S);
+    g.fillStyle = '#2b2b33';
+    g.textAlign = 'center';
+    g.font = '900 34px Nunito, sans-serif';
+    g.fillText(cap(T.name), out.width / 2, S + 66);
+    g.font = '700 20px Nunito, sans-serif';
+    const who = settings.name.trim();
+    g.fillText(`${who ? who + ' · ' : ''}${fmtDate(Date.now())}`, out.width / 2, S + 98);
+    return out.toDataURL('image/jpeg', 0.82);
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+async function arrivalActivity(id, T) {
+  const act = T.activity || { type: 'facts' };
+  hideLabel();
+  if (act.type === 'spot') {
+    await scenes.travel.spotActivity(api); guard(id);
+  } else if (act.type === 'facts') {
+    await scenes.travel.factsActivity(api); guard(id);
+  } else {
+    const sc = { rover: scenes.mars, rings: scenes.rings, flag: scenes.moon }[act.type];
+    if (act.type === 'rings') assets.saturnTex = await loadTexture(planetTexUrl('saturn'));
+    guard(id);
+    await fade(true); guard(id);
+    hideBanner();
+    setScene(sc);
+    sc.update(0);
+    await fade(false); guard(id);
+    await sc.run(api); guard(id);
+  }
+  hideBanner();
+  await wait(0.5); guard(id);
+  await photoStep(id, T);
+}
+
+async function celebrate(title, ids, text) {
+  $('celebrate-title').textContent = title;
+  $('celebrate-imgs').innerHTML = ids.map((i) => `<img src="${thumbs[i]}" alt="">`).join('');
+  $('celebrate-text').textContent = text;
+  $('celebrate').classList.add('active');
+  sfx.unlock();
+  speak(text, { silentWait: false });
+  await new Promise((resolve) => { $('celebrate-ok').onclick = () => { sfx.tap(); resolve(); }; });
+  $('celebrate').classList.remove('active');
+}
 
 async function playRound(destId) {
   const id = newFlow();
@@ -236,10 +541,9 @@ async function playRound(destId) {
     scenes.launch.reset();
     setScene(scenes.launch);
     show('hud');
+    hideTransient();
     setDestChip(destId);
     $('countdown').textContent = '';
-    hideLabel();
-    hideBanner();
     await fade(false); guard(id);
     banner(TEXT.go(T));
     await speak(TEXT.go(T)); guard(id);
@@ -262,29 +566,44 @@ async function playRound(destId) {
     speak(space, { silentWait: false });
 
     const stops = buildStops(destId);
+    const used = [];
     loadTexture(planetTexUrl(stops[0]));
     for (let i = 0; i < stops.length; i++) {
       const pid = stops[i];
       const P = PLANETS[pid];
       if (stops[i + 1]) loadTexture(planetTexUrl(stops[i + 1])); // preload the next one
-      await scenes.travel.warp(i === 0 ? 3.0 : 2.4); guard(id);
+      await scenes.travel.warp(i === 0 ? 2.6 : 2.2); guard(id);
       hideBanner();
+      // a little surprise on most legs of the trip
+      if (Math.random() < 0.8) {
+        await runEncounter(id, T, used);
+        await scenes.travel.warp(1.6); guard(id);
+      }
       const tex = await loadTexture(planetTexUrl(pid)); guard(id);
       scenes.travel.setPlanet(pid, tex);
       sfx.appear();
-      const seen = TEXT.approach();
+      const seen = TEXT.approachBody(P) || TEXT.approach();
       banner(seen);
       speak(seen, { silentWait: false });
       await scenes.travel.approach(); guard(id);
       hideBanner();
 
-      const ans = await ask(TEXT.question(T), destId); guard(id);
       const isDest = pid === destId;
+      const feature = Math.random() < 0.4 ? pickFeature(P, T) : null;
       let msg;
-      if (!isDest && ans === 'no') { sfx.good(); msg = TEXT.goodNo(P, T); }
-      else if (!isDest) { sfx.gentle(); msg = TEXT.wrongYes(P, T); }
-      else if (ans === 'yes') { sfx.good(); msg = TEXT.goodYes(T, name); }
-      else { sfx.gentle(); msg = TEXT.wrongNo(T); }
+      if (feature) {
+        const ans = await ask(`${TEXT.featureIntro} ${feature.q}`, destId); guard(id);
+        const truth = feature.yes.includes(pid);
+        const right = (ans === 'yes') === truth;
+        if (right) { sfx.good(); giveStars(1); } else sfx.gentle();
+        msg = `${right ? TEXT.featureGood() : TEXT.featureWrong} ${truth ? feature.isYes : feature.isNo} ${TEXT.featureReveal(P, T)}`;
+      } else {
+        const ans = await ask(TEXT.question(T), destId); guard(id);
+        if (!isDest && ans === 'no') { sfx.good(); giveStars(1); msg = TEXT.goodNo(P, T); }
+        else if (!isDest) { sfx.gentle(); msg = TEXT.wrongYes(P, T); }
+        else if (ans === 'yes') { sfx.good(); giveStars(1); msg = TEXT.goodYes(T, name); }
+        else { sfx.gentle(); msg = TEXT.wrongNo(T); }
+      }
       showLabel(cap(P.name));
       feedback(msg);
       await Promise.all([speak(msg), wait(2.4)]); guard(id);
@@ -297,6 +616,8 @@ async function playRound(destId) {
         banner(arr);
         sfx.good();
         await Promise.all([speak(arr), wait(3.2)]); guard(id);
+        hideBanner();
+        await arrivalActivity(id, T);
       } else {
         await scenes.travel.flyby(); guard(id);
         releaseTexture(planetTexUrl(pid));
@@ -305,11 +626,12 @@ async function playRound(destId) {
 
     // --- victory
     await fade(true); guard(id);
-    hideBanner();
-    hideLabel();
+    hideTransient();
+    scenes.travel.clearFx();
     scenes.travel.removePlanet();
     releaseTexture(planetTexUrl(destId));
-    addVisited(destId);
+    const wasUnlocked = bonusUnlocked();
+    recordVisit(destId);
     scenes.victory.setup(destId);
     setScene(scenes.victory);
     $('v-title').textContent = TEXT.victoryTitle(name);
@@ -324,9 +646,24 @@ async function playRound(destId) {
     await scenes.victory.play(id); guard(id);
     if (!hasTrack('victoire')) sfx.victory();
     confetti.start();
+    giveStars(3, W / 2, H * 0.3);
     $('v-fact').classList.add('show');
-    document.querySelector('.victory-foot').classList.add('ready');
     await speak(TEXT.victorySpeech(T, name)); guard(id);
+    await wait(0.8); guard(id);
+    // new destinations, new rocket decorations
+    if (!wasUnlocked && bonusUnlocked() && !progress.unlockSeen) {
+      progress.unlockSeen = true;
+      saveProgress();
+      await celebrate('Nouvelles destinations !', BONUS, TEXT.unlocked); guard(id);
+    }
+    const decors = newDecors();
+    if (decors.length) {
+      markDecorsSeen();
+      const names = decors.map((d) => d.name);
+      const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}` : names[0];
+      await celebrate(names.length > 1 ? 'Nouveaux décors !' : 'Nouveau décor !', [], TEXT.newDecor({ name: list }) + ' Va voir dans « Ma fusée ».'); guard(id);
+    }
+    document.querySelector('.victory-foot').classList.add('ready');
   } catch (e) {
     if (!(e instanceof Cancelled)) console.error(e);
   }
@@ -339,7 +676,7 @@ function buildMapLabels(destId) {
   box.innerHTML = '';
   mapLabels = [
     { id: 'earth', text: 'Terre', cls: 'map-label', below: true },
-    { id: destId, text: cap(PLANETS[destId].name), cls: 'map-label dest', below: false },
+    { id: destId, text: cap(PLANETS[destId].short || PLANETS[destId].name), cls: 'map-label dest', below: false },
   ].map((l) => {
     const el = document.createElement('div');
     el.className = l.cls;
@@ -439,6 +776,7 @@ function closeSettings() {
   applyVolume();
   $('settings').classList.remove('active');
   $('set-name').blur();
+  if (scenes) scenes.home.restyle();
 }
 document.querySelectorAll('.seg').forEach((seg) => {
   seg.addEventListener('click', (e) => {
@@ -446,7 +784,7 @@ document.querySelectorAll('.seg').forEach((seg) => {
     if (!b) return;
     const key = seg.dataset.key;
     const v = b.dataset.v;
-    settings[key] = key === 'countdown' ? Number(v) : v === 'random' ? 'random' : Number(v);
+    settings[key] = key === 'countdown' ? Number(v) : v === 'random' ? 'random' : Number(v);
     seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
   });
 });
@@ -460,6 +798,8 @@ document.addEventListener('pointerdown', () => unlockAudio(), { passive: true })
 // Buttons
 // ---------------------------------------------------------------------------
 $('play').addEventListener('click', () => { unlockAudio(); sfx.tap(); goChoose(); });
+$('garage-btn').addEventListener('click', () => { unlockAudio(); sfx.tap(); goGarage(); });
+$('carnet-btn').addEventListener('click', () => { unlockAudio(); sfx.tap(); goCarnet(); });
 $('go').addEventListener('click', () => { if (!selected) return; unlockAudio(); sfx.tap(); playRound(selected); });
 document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { sfx.tap(); stopSpeaking(); goHome(); }));
 $('settings-btn').addEventListener('click', () => { unlockAudio(); openSettings(); });
@@ -468,17 +808,19 @@ $('yes').addEventListener('click', () => answer('yes'));
 $('no').addEventListener('click', () => answer('no'));
 $('repeat').addEventListener('click', () => { unlockAudio(); speak(lastQuestion, { silentWait: false }); });
 $('quit').addEventListener('click', () => $('confirm').classList.add('active'));
-$('confirm-yes').addEventListener('click', () => { confetti.stop(); goHome(); });
+$('confirm-yes').addEventListener('click', () => goHome());
 $('confirm-no').addEventListener('click', () => $('confirm').classList.remove('active'));
-$('again').addEventListener('click', () => { sfx.tap(); confetti.stop(); stopSpeaking(); cancelFlow(); selected = null; goChoose(); });
-$('to-home').addEventListener('click', () => { sfx.tap(); confetti.stop(); goHome(); });
+$('again').addEventListener('click', () => { sfx.tap(); confetti.stop(); stopSpeaking(); selected = null; goChoose(); });
+$('to-home').addEventListener('click', () => { sfx.tap(); goHome(); });
+$('to-carnet').addEventListener('click', () => { sfx.tap(); goCarnet(); });
 
 // Android integration: back button and app pause/resume.
 window.handleBack = () => {
   if ($('settings').classList.contains('active')) { closeSettings(); return true; }
+  if ($('photo-view').classList.contains('active')) { $('photo-view').classList.remove('active'); return true; }
   if ($('confirm').classList.contains('active')) { $('confirm').classList.remove('active'); return true; }
   if (screen === 'hud') { $('confirm').classList.add('active'); return true; }
-  if (screen === 'choose' || screen === 'victory') { confetti.stop(); goHome(); return true; }
+  if (screen !== 'home' && screen !== 'loading') { goHome(); return true; }
   return false;
 };
 window.onAppPause = () => { paused = true; stopSpeaking(); suspendAudio(); };
@@ -516,22 +858,29 @@ function frame() {
     $('loading-error').classList.remove('hidden');
     return;
   }
+  api.textures.cometSmall = assets.small.comet;
   scenes = {
     home: new HomeScene(assets),
     launch: new LaunchScene(assets),
     travel: new TravelScene(assets),
     victory: new VictoryScene(assets),
+    mars: new MarsActivity(assets),
+    rings: new RingsActivity(assets),
+    moon: new MoonActivity(assets),
+    garage: new GarageScene(assets),
   };
   setScene(scenes.home);
   // compile shaders up front to avoid hitches later
   Object.values(scenes).forEach((s) => { s.resize(W, H); renderer.compile(s.scene, s.camera); });
   frame();
   show('home');
+  starEl.classList.remove('hidden');
+  updateStarCount(false);
   preloadMusic();
   preloadSounds();
   playMusic('accueil'); // starts at once in the app, after the first touch in a browser
   window.game = {
-    scenes, playRound, goHome, goChoose, answer, settings, get screen() { return screen; },
+    scenes, playRound, goHome, goChoose, goCarnet, goGarage, answer, settings, progress, get screen() { return screen; }, get current() { return current; },
     // test helpers: jump straight to a scene
     debug: {
       async travel(pid) {
@@ -540,6 +889,13 @@ function frame() {
         scenes.travel.planet.group.position.copy(scenes.travel.inspectPos);
       },
       launch() { cancelFlow(); scenes.launch.reset(); setScene(scenes.launch); show('hud'); },
+      async activity(kind) {
+        cancelFlow(); show('hud'); hideTransient();
+        if (kind === 'rings') assets.saturnTex = await loadTexture(planetTexUrl('saturn'));
+        const sc = scenes[kind]; setScene(sc); sc.run(api);
+      },
+      encounter(kind) { return kind === 'quiz' ? quiz(PLANETS.saturn) : ENCOUNTERS[kind](scenes.travel, api); },
+      photo(dest) { return photoStep(newFlow(), PLANETS[dest]); },
       audio: () => audioState(),
       music: () => ({ accueil: hasTrack('accueil'), voyage: hasTrack('voyage'), victoire: hasTrack('victoire'), decollage: hasLaunchSound() }),
       step(dt, n = 1) { for (let i = 0; i < n; i++) { updateTweens(dt); current.update(dt); } if (current === scenes.victory) updateMapLabels(); renderer.render(current.scene, current.camera); },

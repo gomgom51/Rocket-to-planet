@@ -26,6 +26,33 @@ de 6 ans qui adore l’espace et reconnaît les planètes.
 
 Les planètes déjà visitées reçoivent une étoile dorée dans le menu.
 
+## Pour varier les parties
+
+* **Des étoiles à gagner** : bonnes réponses, étoiles filantes, activités,
+  photos… Le compteur ★ est toujours visible en haut de l’écran.
+* **Des questions variées** : « Est-ce que c’est Saturne ? », mais aussi
+  « Est-ce qu’elle a de grands anneaux ? », « Est-ce qu’elle est rouge ? »,
+  et des devinettes en images de l’ordinateur de bord (« Laquelle est la plus
+  grosse ? », « Trouve la Terre ! »). Une erreur n’est jamais punie : on
+  réessaie jusqu’à trouver.
+* **Des rencontres pendant le voyage** : étoiles filantes à attraper, station
+  spatiale à qui faire coucou, petit vaisseau ami qui fait des pirouettes,
+  comète, astéroïdes.
+* **Une activité à l’arrivée** :
+  * Mars : aider le robot à ramasser les cailloux qui brillent ;
+  * Saturne : traverser les anneaux et attraper les cristaux de glace ;
+  * la Lune : planter son drapeau (avec son prénom) et faire sauter l’astronaute ;
+  * Jupiter, Neptune, Pluton : trouver la grande tache rouge, la tache sombre, le grand cœur ;
+  * les autres : toucher la planète pour découvrir trois secrets.
+* **Une photo souvenir** à chaque arrivée, rangée dans le carnet.
+* **Mon carnet de bord** : un tampon par destination visitée (avec la date et le
+  nombre de visites) et toutes les photos.
+* **Nouvelles destinations** : après les 7 planètes, la Lune, Europe, Titan,
+  Pluton et une comète se débloquent.
+* **Ma fusée** : choisir la couleur de la fusée et des ailerons, son prénom
+  peint dessus, et des décors (étoiles, cœurs, pois, planètes, arc-en-ciel,
+  flammes) qui se débloquent avec les étoiles.
+
 ## Pensé pour le syndrome de Williams
 
 * **Pas d’échec** : une mauvaise réponse n’est jamais punie. Le jeu corrige avec
@@ -116,6 +143,10 @@ désinstaller. Ce n’est pas une clé adaptée à une publication sur le Play S
 * `web/` : le jeu (HTML, CSS, JavaScript, moteur 3D three.js, textures).
   * `js/data.js` : les planètes et **toutes les phrases** du jeu (faciles à modifier).
   * `js/scenes.js` : les scènes 3D (accueil, pas de tir, voyage, carte de victoire).
+  * `js/encounters.js` : les rencontres pendant le voyage.
+  * `js/activities.js` : les activités à l’arrivée (Mars, Saturne, la Lune).
+  * `js/screens.js` : le carnet de bord et « Ma fusée ».
+  * `js/progress.js` : les étoiles, tampons, photos et le style de la fusée.
   * `js/main.js` : le déroulement de la partie et les écrans.
 * `android/` : la petite application Android qui affiche le jeu (WebView) et lui
   donne la voix française (TextToSpeech).
@@ -125,9 +156,12 @@ désinstaller. Ce n’est pas une clé adaptée à une publication sur le Play S
 
 * Textures des planètes : [Solar System Scope](https://www.solarsystemscope.com/textures/)
   (licence CC BY 4.0, d’après des données NASA). Terre : NASA Earth Observatory,
-  *Blue Marble Next Generation* (domaine public). Récupérées via le paquet npm
-  `astraeus`. L’atmosphère de Vénus, les anneaux de Saturne et la Voie lactée sont
-  générés par `tools/make_textures.py`.
+  *Blue Marble Next Generation* (domaine public). Lune : NASA Scientific
+  Visualization Studio. Europe : USGS Astrogeology / NASA/JPL (domaine public).
+  Titan : NASA/JPL-Caltech/Space Science Institute. Pluton : NASA/JHUAPL/SwRI.
+  Récupérées via les paquets npm `astraeus` et `astraeus-data`. L’atmosphère de
+  Vénus, les anneaux de Saturne, la comète et la Voie lactée sont générés par
+  `tools/make_textures.py` et `tools/make_bonus_textures.py`.
 * Moteur 3D : [three.js](https://threejs.org) (licence MIT).
 * Police : [Nunito](https://fonts.google.com/specimen/Nunito) (SIL Open Font License).
 * Musiques : créées avec Suno. Son du décollage : « Seamless rocket booster roar & crackle », freesound_community (Pixabay).

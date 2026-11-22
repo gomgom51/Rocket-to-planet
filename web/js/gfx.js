@@ -1,6 +1,8 @@
 // Rendering building blocks: textures, planets, stars, rocket, particles.
 
 import * as THREE from '../vendor/three.module.min.js';
+import { COLORS, DEFAULT_STYLE } from './data.js';
+import { cometGeometry, createCometTails } from './models.js';
 
 export { THREE };
 
@@ -229,18 +231,25 @@ export function createPlanet(def, tex, { radius = 1, segments = 64, ringTex = nu
   const mat = sun
     ? new THREE.MeshBasicMaterial({ map: tex })
     : new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
-  const body = new THREE.Mesh(new THREE.SphereGeometry(radius, segments, Math.round(segments / 2)), mat);
+  const comet = def && def.kind === 'comet';
+  const geo = comet ? cometGeometry(radius) : new THREE.SphereGeometry(radius, segments, Math.round(segments / 2));
+  const body = new THREE.Mesh(geo, mat);
   tilt.add(body);
   let atmo = null;
   let rings = null;
+  let tails = null;
+  let time = 0;
+  if (comet) { tails = createCometTails(radius); group.add(tails); }
   if (def && def.atmosphere) { atmo = createAtmosphere(radius, def.atmosphere); group.add(atmo); }
   if (def && def.rings && ringTex) { rings = createRings(radius, ringTex); tilt.add(rings); }
   const sunDir = new THREE.Vector3(1, 0, 0);
   const tmp = new THREE.Vector3();
   const api = {
-    group, body, rings, radius,
+    group, body, rings, radius, tails,
     update(dt) {
-      body.rotation.y += dt * (def ? def.spin : 0.02);
+      time += dt;
+      if (api.spinning !== false) body.rotation.y += dt * (def ? def.spin : 0.02);
+      if (tails) tails.userData.update(time);
       if (rings) {
         const u = rings.material.uniforms;
         group.updateMatrixWorld();
@@ -253,6 +262,7 @@ export function createPlanet(def, tex, { radius = 1, segments = 64, ringTex = nu
     setSun(dir) {
       sunDir.copy(dir).normalize();
       if (atmo) atmo.userData.uniforms.uSun.value.copy(sunDir);
+      if (tails) tails.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), sunDir.clone().negate());
     },
     dispose() {
       group.traverse((o) => {
@@ -267,26 +277,177 @@ export function createPlanet(def, tex, { radius = 1, segments = 64, ringTex = nu
 // ---------------------------------------------------------------------------
 // Rocket (built along +Y, origin at the base of the body)
 // ---------------------------------------------------------------------------
-export function createRocket() {
+// ---- rocket paint (colours, decorations, name) -----------------------------
+const colorHex = (id) => (COLORS.find((c) => c.id === id) || COLORS[0]).hex;
+function luminance(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+}
+function rng(seed) {
+  return () => {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function starPath(g, x, y, r) {
+  g.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const rr = i % 2 ? r * 0.45 : r;
+    const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+    g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  g.closePath();
+}
+function heartPath(g, x, y, r) {
+  g.beginPath();
+  g.moveTo(x, y + r * 0.9);
+  g.bezierCurveTo(x - r * 1.6, y - r * 0.2, x - r * 0.7, y - r * 1.3, x, y - r * 0.45);
+  g.bezierCurveTo(x + r * 0.7, y - r * 1.3, x + r * 1.6, y - r * 0.2, x, y + r * 0.9);
+  g.closePath();
+}
+
+export const ROCKET_TEX_W = 1024;
+export const ROCKET_TEX_H = 1260;
+
+/** Paint the rocket body (canvas spans the whole circumference; x = W/2 is the front). */
+export function paintRocket(g, w, h, style, name) {
+  const body = colorHex(style.body);
+  const fins = colorHex(style.fins);
+  const light = luminance(body) > 0.55;
+  const ink = light ? '#1c1c24' : '#f6f6f2';
+  g.fillStyle = body;
+  g.fillRect(0, 0, w, h);
+  const random = rng(11);
+  const zone = name ? { x0: w * 0.37, x1: w * 0.63, y0: h * 0.06, y1: h * 0.96 } : null;
+  const free = (x, y, r) => !zone || x + r < zone.x0 || x - r > zone.x1 || y + r < zone.y0 || y - r > zone.y1;
+  const wrap = (x, y, r, draw) => { draw(x, y); if (x - r < 0) draw(x + w, y); if (x + r > w) draw(x - w, y); };
+  const scatter = (cols, rows, rMin, rMax, drawOne) => {
+    for (let j = 0; j < rows; j++) {
+      for (let i = 0; i < cols; i++) {
+        const x = ((i + 0.5 + (j % 2) * 0.5) / cols) * w + (random() - 0.5) * (w / cols) * 0.4;
+        const y = ((j + 0.5) / rows) * h + (random() - 0.5) * (h / rows) * 0.4;
+        const r = rMin + random() * (rMax - rMin);
+        if (free(x, y, r)) wrap(x, y, r, (xx, yy) => drawOne(xx, yy, r, i + j));
+      }
+    }
+  };
+  const Y = (yy) => (1 - (yy - 0.12) / (2.9 - 0.12)) * h; // rocket height -> canvas y
+  switch (style.decor) {
+    case 'classic': {
+      g.fillStyle = light ? '#18181c' : '#f2f2ee';
+      g.fillRect(0, Y(0.92), w, Y(0.8) - Y(0.92));
+      g.fillRect(0, Y(2.47), w, Y(2.37) - Y(2.47));
+      for (const u of [0.125, 0.625]) g.fillRect(u * w, Y(0.79), w * 0.25, Y(0.17) - Y(0.79));
+      for (const u of [0.375, 0.875]) {
+        g.fillRect(u * w, Y(2.9), w * 0.25, Y(2.58) - Y(2.9));
+        if (u === 0.875) g.fillRect(-0.125 * w, Y(2.9), w * 0.25, Y(2.58) - Y(2.9));
+      }
+      break;
+    }
+    case 'stars':
+      scatter(7, 8, 34, 58, (x, y, r, k) => { g.fillStyle = k % 3 ? '#ffd34a' : fins; starPath(g, x, y, r); g.fill(); });
+      break;
+    case 'hearts':
+      scatter(7, 8, 34, 52, (x, y, r, k) => { g.fillStyle = k % 3 === 0 ? '#ff7ab8' : k % 3 === 1 ? '#e8334a' : fins; heartPath(g, x, y, r); g.fill(); });
+      break;
+    case 'dots':
+      scatter(8, 10, 30, 30, (x, y, r) => { g.fillStyle = fins; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); });
+      break;
+    case 'planets': {
+      const pc = ['#e8a050', '#6fa8ff', '#d6524a', '#f2d48a', '#9be0e8', '#b98cff'];
+      scatter(6, 7, 30, 46, (x, y, r, k) => {
+        g.fillStyle = pc[k % pc.length];
+        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+        if (k % 2 === 0) {
+          g.strokeStyle = light ? 'rgba(40,40,50,0.8)' : 'rgba(255,255,255,0.85)';
+          g.lineWidth = 7;
+          g.beginPath(); g.ellipse(x, y, r * 1.7, r * 0.45, -0.3, 0, Math.PI * 2); g.stroke();
+        }
+      });
+      break;
+    }
+    case 'rainbow': {
+      const rc = ['#e8334a', '#f08a2e', '#f5c533', '#3fb36b', '#2f9ad8', '#3a55c8', '#8a5cd6'];
+      const band = h * 0.032;
+      rc.forEach((c, i) => { g.fillStyle = c; g.fillRect(0, h * 0.66 + i * band, w, band); });
+      rc.forEach((c, i) => { g.fillStyle = c; g.fillRect(0, h * 0.08 + i * band * 0.5, w, band * 0.5); });
+      break;
+    }
+    case 'flames': {
+      for (let i = 0; i < 14; i++) {
+        const x = (i + 0.5) / 14 * w;
+        const top = h * (0.5 + random() * 0.2);
+        const wd = w / 14 * 0.75;
+        const grd = g.createLinearGradient(0, h, 0, top);
+        grd.addColorStop(0, '#e8334a');
+        grd.addColorStop(0.5, '#f08a2e');
+        grd.addColorStop(1, '#ffd34a');
+        g.fillStyle = grd;
+        g.beginPath();
+        g.moveTo(x - wd, h);
+        g.quadraticCurveTo(x - wd * 1.1, top + (h - top) * 0.4, x, top);
+        g.quadraticCurveTo(x + wd * 1.1, top + (h - top) * 0.4, x + wd, h);
+        g.closePath();
+        g.fill();
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  if (name) {
+    let size = 170;
+    g.font = `900 ${size}px Nunito, sans-serif`;
+    while (g.measureText(name).width > h * 0.82 && size > 60) { size -= 8; g.font = `900 ${size}px Nunito, sans-serif`; }
+    g.save();
+    g.translate(w / 2, h * 0.52);
+    g.rotate(-Math.PI / 2);
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    const fill = style.fins !== style.body && Math.abs(luminance(fins) - luminance(body)) > 0.25 ? fins : ink;
+    g.lineJoin = 'round';
+    g.lineWidth = size * 0.16;
+    g.strokeStyle = luminance(fill) > 0.55 ? 'rgba(20,20,30,0.85)' : 'rgba(255,255,255,0.92)';
+    g.strokeText(name, 0, 0);
+    g.fillStyle = fill;
+    g.fillText(name, 0, 0);
+    g.restore();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rocket (built along +Y, origin at the base of the body)
+// ---------------------------------------------------------------------------
+export function createRocket(style = DEFAULT_STYLE, name = '') {
   const root = new THREE.Group();
   const model = new THREE.Group();
   root.add(model);
-  const white = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.38, metalness: 0.12 });
-  const black = new THREE.MeshStandardMaterial({ color: 0x18181c, roughness: 0.5, metalness: 0.2 });
-  const red = new THREE.MeshStandardMaterial({ color: 0xc41f2b, roughness: 0.38, metalness: 0.2 });
+  const canvas = document.createElement('canvas');
+  canvas.width = ROCKET_TEX_W;
+  canvas.height = ROCKET_TEX_H;
+  const bodyTex = new THREE.CanvasTexture(canvas);
+  bodyTex.colorSpace = THREE.SRGBColorSpace;
+  bodyTex.anisotropy = 4;
+  const paintMat = new THREE.MeshStandardMaterial({ map: bodyTex, roughness: 0.38, metalness: 0.12 });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.38, metalness: 0.12 });
+  const finMat = new THREE.MeshStandardMaterial({ color: 0xc41f2b, roughness: 0.38, metalness: 0.2 });
   const metal = new THREE.MeshStandardMaterial({ color: 0x5e6168, roughness: 0.32, metalness: 0.85 });
   const glass = new THREE.MeshStandardMaterial({ color: 0x1d3d66, roughness: 0.08, metalness: 0.6, emissive: 0x0a1a33 });
   const R = 0.36;
   const H = 2.9;  // cylinder height
   const N = 1.45; // nose height
 
-  // body cylinder with a slightly rounded base
-  const body = new THREE.LatheGeometry([
-    new THREE.Vector2(0.001, 0), new THREE.Vector2(0.30, 0), new THREE.Vector2(R, 0.12), new THREE.Vector2(R, H),
-  ], 48);
-  model.add(new THREE.Mesh(body, white));
+  // rounded base + painted body cylinder (u = 0.5 faces +Z, the porthole side)
+  model.add(new THREE.Mesh(new THREE.LatheGeometry([
+    new THREE.Vector2(0.001, 0), new THREE.Vector2(0.30, 0), new THREE.Vector2(R, 0.12),
+  ], 48), bodyMat));
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H - 0.12, 64, 1, true, Math.PI, Math.PI * 2), paintMat);
+  cyl.position.y = 0.12 + (H - 0.12) / 2;
+  model.add(cyl);
 
-  // ogive nose: white, red tip
+  // ogive nose: body colour, tip in the fin colour
   const noseR = (t) => R * Math.pow(Math.max(0, 1 - t * t), 0.62);
   const nosePts = (t0, t1) => {
     const pts = [];
@@ -296,27 +457,17 @@ export function createRocket() {
     }
     return pts;
   };
-  model.add(new THREE.Mesh(new THREE.LatheGeometry(nosePts(0, 0.62), 48), white));
-  model.add(new THREE.Mesh(new THREE.LatheGeometry(nosePts(0.62, 1), 48), red));
+  model.add(new THREE.Mesh(new THREE.LatheGeometry(nosePts(0, 0.62), 48), bodyMat));
+  model.add(new THREE.Mesh(new THREE.LatheGeometry(nosePts(0.62, 1), 48), finMat));
 
-  // black bands + roll pattern (alternate quadrants), like real launchers
-  const band = (y, h) => {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.006, R * 1.006, h, 48, 1, true), black);
-    m.position.y = y;
-    model.add(m);
-  };
-  band(0.86, 0.12);
-  band(2.42, 0.1);
-  for (let q = 0; q < 2; q++) {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.004, R * 1.004, 0.62, 24, 1, true, q * Math.PI, Math.PI / 2), black);
-    m.position.y = 0.48;
-    model.add(m);
+  function applyStyle(st, nm) {
+    const s = { ...DEFAULT_STYLE, ...(st || {}) };
+    paintRocket(canvas.getContext('2d'), canvas.width, canvas.height, s, s.name ? (nm || '') : '');
+    bodyTex.needsUpdate = true;
+    bodyMat.color.set(colorHex(s.body));
+    finMat.color.set(colorHex(s.fins));
   }
-  for (let q = 0; q < 2; q++) {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.004, R * 1.004, 0.32, 24, 1, true, q * Math.PI + Math.PI / 2, Math.PI / 2), black);
-    m.position.y = 2.74;
-    model.add(m);
-  }
+  applyStyle(style, name);
 
   // porthole facing +Z
   const rim = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.022, 10, 32), metal);
@@ -337,7 +488,7 @@ export function createRocket() {
   const finGeo = new THREE.ExtrudeGeometry(finShape, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 1 });
   finGeo.translate(0, 0, -0.025);
   for (let i = 0; i < 4; i++) {
-    const fin = new THREE.Mesh(finGeo, red);
+    const fin = new THREE.Mesh(finGeo, finMat);
     const a = i * Math.PI / 2 + Math.PI / 4;
     fin.position.set(Math.sin(a) * (R - 0.03), 0, Math.cos(a) * (R - 0.03));
     fin.rotation.y = a - Math.PI / 2;
@@ -390,6 +541,7 @@ export function createRocket() {
   let time = 0;
   root.userData = {
     flame,
+    applyStyle,
     setThrust(v) { thrust = v; },
     getThrust() { return thrust; },
     update(dt) {
