@@ -130,3 +130,4 @@ désinstaller. Ce n’est pas une clé adaptée à une publication sur le Play S
   générés par `tools/make_textures.py`.
 * Moteur 3D : [three.js](https://threejs.org) (licence MIT).
 * Police : [Nunito](https://fonts.google.com/specimen/Nunito) (SIL Open Font License).
+* Musiques : créées avec Suno. Son du décollage : « Seamless rocket booster roar & crackle », freesound_community (Pixabay).

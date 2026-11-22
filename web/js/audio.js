@@ -145,7 +145,7 @@ function noiseSource(seconds) {
 // synthesized engine is used: deep rumble + roar + crackle + sub-bass.
 // ---------------------------------------------------------------------------
 let engine = null;       // synthesized engine
-let launchFile = null;   // { el, node, gain, ok }
+let launchFile = null;   // { buffer, ok, src, out }
 
 function makeBuffer(seconds, fill) {
   const len = Math.floor(ctx.sampleRate * seconds);
@@ -258,16 +258,19 @@ function ignitionThump() {
   o.stop(t0 + 1.3);
 }
 
-export function hasLaunchSound() { return !!(launchFile && launchFile.ok); }
+export function hasLaunchSound() { return !!(launchFile && launchFile.buffer); }
 
+// The liftoff file is decoded in memory so that it can loop without any gap
+// (a short "seamless" loop works as well as a full liftoff recording).
 export function preloadSounds() {
   if (launchFile) return;
-  const el = new Audio();
-  el.preload = 'auto';
-  launchFile = { el, ok: null, node: null, gain: null };
-  el.addEventListener('canplay', () => { if (launchFile.ok === null) launchFile.ok = true; });
-  el.addEventListener('error', () => { launchFile.ok = false; });
-  el.src = 'sons/decollage.mp3';
+  launchFile = { buffer: null, ok: null, src: null, out: null };
+  unlockAudio(); // creates the audio context (it may stay paused until a touch)
+  fetch('sons/decollage.mp3')
+    .then((r) => { if (!r.ok) throw new Error('no file'); return r.arrayBuffer(); })
+    .then((data) => new Promise((resolve, reject) => ctx.decodeAudioData(data, resolve, reject)))
+    .then((buffer) => { launchFile.buffer = buffer; launchFile.ok = true; })
+    .catch(() => { launchFile.ok = false; });
 }
 
 let engineOn = false;
@@ -276,40 +279,39 @@ let usingFile = false;
 /**
  * Engine sound during the launch.
  *   envelope: 0..1 overall level (0 before ignition, fades to 0 in space)
- *   thrust:   0..1 how hard the engine pushes (shapes the synthesized sound)
+ *   thrust:   0..1 how hard the engine pushes
  */
 export function setEngine(envelope, thrust = envelope) {
   if (!ctx) return;
   if (!engineOn && envelope > 0.001) {
     engineOn = true;
     preloadSounds();
-    usingFile = !!(launchFile && launchFile.ok);
+    usingFile = !!(launchFile && launchFile.buffer);
     if (usingFile) {
       try {
-        if (!launchFile.node) {
-          launchFile.node = ctx.createMediaElementSource(launchFile.el);
-          const lp = ctx.createBiquadFilter(); // soften harsh highs (hyperacusis)
-          lp.type = 'lowpass';
-          lp.frequency.value = 5000;
-          const { out } = engineChain();
-          launchFile.gain = out;
-          launchFile.node.connect(lp).connect(out);
-        }
-        launchFile.el.currentTime = 0;
-        launchFile.el.play().catch(() => {});
+        const src = ctx.createBufferSource();
+        src.buffer = launchFile.buffer;
+        src.loop = true;
+        const lp = ctx.createBiquadFilter(); // soften harsh highs (hyperacusis)
+        lp.type = 'lowpass';
+        lp.frequency.value = 5000;
+        const { out } = engineChain();
+        src.connect(lp).connect(out);
+        src.start();
+        launchFile.src = src;
+        launchFile.out = out;
       } catch (e) {
         usingFile = false;
       }
     }
-    if (!usingFile) {
-      engine = startSynthEngine();
-      ignitionThump();
-    }
+    if (!usingFile) engine = startSynthEngine();
+    ignitionThump();
   }
   if (!engineOn) return;
   const t = now();
   if (usingFile) {
-    launchFile.gain.gain.setTargetAtTime(envelope * 0.85, t, 0.4);
+    // the recording gets louder with the thrust: soft at ignition, full at lift-off
+    launchFile.out.gain.setTargetAtTime(envelope * (0.3 + 0.7 * thrust) * 0.5, t, 0.5);
   } else if (engine) {
     const e = engine;
     // Phone speakers barely play below ~250 Hz: the "roar" in the mid
@@ -327,10 +329,11 @@ export function setEngine(envelope, thrust = envelope) {
 export function stopEngine() {
   if (!engineOn) return;
   engineOn = false;
-  if (usingFile && launchFile && launchFile.gain) {
-    launchFile.gain.gain.setTargetAtTime(0, now(), 0.4);
-    const el = launchFile.el;
-    setTimeout(() => { if (!engineOn) el.pause(); }, 2000);
+  if (launchFile && launchFile.src) {
+    const { src, out } = launchFile;
+    launchFile.src = null;
+    out.gain.setTargetAtTime(0, now(), 0.4);
+    setTimeout(() => { try { src.stop(); } catch (e) { /* ignore */ } }, 2500);
   }
   if (engine) {
     const e = engine;
@@ -477,6 +480,6 @@ export function audioState() {
     musicPlaying: !!(st && !st.el.paused),
     pad: !!music,
     engine: engineOn ? (usingFile ? 'file' : 'synth') : null,
-    launchFilePlaying: !!(launchFile && launchFile.el && !launchFile.el.paused),
+    launchFilePlaying: !!(launchFile && launchFile.src),
   };
 }
