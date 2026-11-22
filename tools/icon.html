@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Icon renderer</title>
+  <style>body { margin: 0; background: #333; }</style>
+</head>
+<body>
+<!-- Renders the launcher icon foreground (Saturn + rocket) with the game's own
+     3D models. Used by tools/make_icon.py through a headless browser. -->
+<canvas id="c" width="432" height="432"></canvas>
+<script type="module">
+  import { THREE, loadTexture, createPlanet, createRocket } from '../web/js/gfx.js';
+  import { PLANETS, faceRotation } from '../web/js/data.js';
+
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1);
+  renderer.setClearColor(0x000000, 0);
+  const scene = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  cam.position.set(0, 0, 10);
+  const sun = new THREE.Vector3(-0.5, 0.5, 0.75).normalize();
+  const light = new THREE.DirectionalLight(0xffffff, 3.2);
+  light.position.copy(sun).multiplyScalar(10);
+  scene.add(light, new THREE.AmbientLight(0xffffff, 0.15));
+
+  const [sat, rings] = await Promise.all([loadTexture('../web/textures/saturn.jpg'), loadTexture('../web/textures/saturn_rings.png')]);
+  // no atmosphere halo: additive glow does not composite well on a transparent icon
+  const p = createPlanet({ ...PLANETS.saturn, atmosphere: null }, sat, { radius: 0.7, segments: 96, ringTex: rings });
+  p.setSun(sun);
+  p.body.rotation.y = faceRotation(PLANETS.saturn);
+  p.group.rotation.x = 0.35;
+  p.group.position.set(0.12, 0.2, 0);
+  p.update(0);
+  scene.add(p.group);
+
+  const rocket = createRocket();
+  rocket.scale.setScalar(0.3);
+  rocket.position.set(-0.78, -1.05, 1.5);
+  rocket.rotation.set(0.2, 0.9, -0.85);
+  rocket.userData.setThrust(0.9);
+  rocket.userData.update(0.016);
+  scene.add(rocket);
+
+  renderer.render(scene, cam);
+  window.iconData = canvas.toDataURL('image/png');
+</script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'">
+  <meta name="theme-color" content="#02030a">
+  <title>Voyage vers les planètes</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- Loading -->
+  <section id="loading" class="screen active">
+    <div class="loading-box">
+      <div class="loading-title">Voyage vers les planètes</div>
+      <div class="bar"><div id="bar-fill"></div></div>
+      <div id="loading-error" class="hidden"></div>
+    </div>
+  </section>
+
+  <!-- Home -->
+  <section id="home" class="screen">
+    <h1 class="title">Voyage<br>vers les planètes</h1>
+    <button id="play" class="big-btn primary">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M8 5v14l11-7z"/></svg>
+      Jouer
+    </button>
+    <button id="settings-btn" class="corner-btn right" aria-label="Réglages">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+    </button>
+  </section>
+
+  <!-- Destination choice -->
+  <section id="choose" class="screen">
+    <button class="corner-btn left back" data-back="home" aria-label="Retour">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M15.5 4 7.5 12l8 8 1.6-1.6L10.7 12l6.4-6.4z"/></svg>
+    </button>
+    <h2 class="screen-title">Où veux-tu aller&nbsp;?</h2>
+    <div id="planet-grid"></div>
+    <button id="go" class="big-btn primary" disabled>
+      <svg viewBox="0 0 24 24" class="ico"><path d="M12 2c3 2 5 6 5 10l2 3v4l-3-2h-8l-3 2v-4l2-3c0-4 2-8 5-10zm0 6.5a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z"/></svg>
+      C’est parti&nbsp;!
+    </button>
+  </section>
+
+  <!-- In-game HUD -->
+  <section id="hud" class="screen">
+    <button id="quit" class="corner-btn left small" aria-label="Accueil">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg>
+    </button>
+    <div id="dest-chip" class="chip"></div>
+    <div id="countdown"></div>
+    <div id="planet-label"></div>
+    <div id="banner"></div>
+    <div id="dialog" class="panel">
+      <button id="repeat" class="speak-btn" aria-label="Répéter">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
+      </button>
+      <img id="dialog-hint" alt="">
+      <div id="dialog-text"></div>
+      <div id="dialog-buttons">
+        <button id="yes" class="answer yes">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+          Oui
+        </button>
+        <button id="no" class="answer no">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg>
+          Non
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Victory -->
+  <section id="victory" class="screen">
+    <canvas id="confetti"></canvas>
+    <div class="victory-head">
+      <div id="v-title" class="victory-title"></div>
+      <div id="v-line" class="victory-line"></div>
+    </div>
+    <div id="v-labels"></div>
+    <div class="victory-foot">
+      <div id="v-fact" class="panel fact"></div>
+      <div class="row">
+        <button id="again" class="big-btn primary">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M12 5V1L7 6l5 5V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>
+          Rejouer
+        </button>
+        <button id="to-home" class="big-btn secondary" aria-label="Accueil">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Parent settings -->
+  <section id="settings" class="modal">
+    <div class="panel settings-panel">
+      <h2>Réglages (parents)</h2>
+      <label class="field">Prénom de l’enfant
+        <input id="set-name" type="text" maxlength="20" autocomplete="off" placeholder="(facultatif)">
+      </label>
+      <label class="switch"><input id="set-voice" type="checkbox"><span>Voix qui lit les textes</span></label>
+      <label class="switch"><input id="set-sound" type="checkbox"><span>Sons et musique douce</span></label>
+      <label class="field">Volume
+        <input id="set-volume" type="range" min="0.1" max="1" step="0.05">
+      </label>
+      <div class="field">Compte à rebours
+        <div class="seg" data-key="countdown">
+          <button data-v="5">5</button><button data-v="10">10</button>
+        </div>
+      </div>
+      <div class="field">Planètes à passer avant la bonne
+        <div class="seg" data-key="stops">
+          <button data-v="0">0</button><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="random">Au hasard</button>
+        </div>
+      </div>
+      <label class="switch"><input id="set-hint" type="checkbox"><span>Aide&nbsp;: montrer l’image de la planète cherchée</span></label>
+      <details class="credits">
+        <summary>Crédits</summary>
+        <p>Textures des planètes&nbsp;: Solar System Scope (solarsystemscope.com), licence CC BY 4.0, d’après des données de la NASA. Terre&nbsp;: NASA Earth Observatory, Blue Marble Next Generation (domaine public). Vénus, anneaux de Saturne, Voie lactée&nbsp;: générés par le jeu.</p>
+        <p>Moteur 3D&nbsp;: three.js (licence MIT). Police&nbsp;: Nunito (SIL Open Font License).</p>
+      </details>
+      <button id="settings-close" class="big-btn primary">OK</button>
+    </div>
+  </section>
+
+  <!-- Confirm leaving the game -->
+  <section id="confirm" class="modal">
+    <div class="panel confirm-panel">
+      <div class="confirm-text">Retourner à l’accueil&nbsp;?</div>
+      <div class="row">
+        <button id="confirm-yes" class="answer yes">Oui</button>
+        <button id="confirm-no" class="answer no">Non</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="fade"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
