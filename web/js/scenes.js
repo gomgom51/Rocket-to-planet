@@ -307,10 +307,11 @@ export class LaunchScene {
 
   async run(id, count, onCount) {
     for (let i = count; i >= 1; i--) {
-      onCount(i);
+      const said = onCount(i);
       if (i === Math.min(5, count)) this.retractArm();
       if (i === 3) this.ignite();
-      await wait(1);
+      // one second per number, a little more if the voice needs it
+      await Promise.all([wait(1), said]);
       guard(id);
     }
     if (this.ignition < 0) this.ignite();

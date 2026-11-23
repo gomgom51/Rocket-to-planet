@@ -78,10 +78,19 @@ function estimate(text) {
   return 700 + text.length * 62;
 }
 
+// Is the browser voice saying (or about to say) something?
+function browserBusy() {
+  return !bridge && 'speechSynthesis' in window && (speechSynthesis.speaking || speechSynthesis.pending);
+}
+
+// The sentence being said: Chrome can forget an utterance nobody refers to,
+// and then never says when it has finished.
+let utterance = null;
+
 export function stopSpeaking() {
   try {
     if (bridge) bridge.stop();
-    else if ('speechSynthesis' in window) speechSynthesis.cancel();
+    else if (browserBusy()) speechSynthesis.cancel();
   } catch (e) { /* ignore */ }
   for (const done of pending.values()) done();
   pending.clear();
@@ -96,6 +105,7 @@ export function speak(text, { silentWait = true } = {}) {
   if (!settings.voice || timeScale > 1) {
     return new Promise((r) => setTimeout(r, silentWait ? fallbackMs : 0));
   }
+  const interrupted = browserBusy();
   stopSpeaking();
   const id = String(++counter);
   setDuck(true);
@@ -123,7 +133,11 @@ export function speak(text, { silentWait = true } = {}) {
         u.pitch = 1.08;
         u.onend = finish;
         u.onerror = finish;
-        speechSynthesis.speak(u);
+        utterance = u;
+        // Chrome sometimes drops a sentence started just after cutting
+        // another one: leave it a moment.
+        if (interrupted) setTimeout(() => { if (pending.has(id)) speechSynthesis.speak(u); }, 120);
+        else speechSynthesis.speak(u);
       } else {
         setTimeout(finish, fallbackMs);
       }

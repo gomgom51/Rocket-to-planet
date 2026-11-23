@@ -269,6 +269,10 @@ function setDestChip(id) {
   $('dest-chip').innerHTML = `${img}<span>${cap(p.name)}</span>`;
 }
 
+// Shows and says one number of the countdown. Resolves once the number has
+// been said (2.5 s at most): the countdown waits for it, so that a slow voice
+// (the online voices of Edge or Chrome on a computer start talking late) is
+// never cut by the next number.
 function showCount(n) {
   const el = $('countdown');
   el.classList.remove('pop');
@@ -277,7 +281,8 @@ function showCount(n) {
     el.textContent = String(n);
     el.classList.remove('word');
     sfx.tick(false);
-    speak(NUMBERS[n], { silentWait: false });
+    el.classList.add('pop');
+    return Promise.race([speak(NUMBERS[n], { silentWait: false }), wait(2.5)]);
   } else {
     el.textContent = TEXT.liftoff;
     el.classList.add('word');
