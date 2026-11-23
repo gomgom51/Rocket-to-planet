@@ -139,8 +139,10 @@ export default {
   },
 
   colors: {
-    white: 'White', silver: 'Silver', red: 'Red', orange: 'Orange', yellow: 'Yellow',
-    green: 'Green', blue: 'Blue', purple: 'Purple', pink: 'Pink', black: 'Black',
+    white: 'White', beige: 'Beige', silver: 'Silver', gold: 'Gold', yellow: 'Yellow',
+    orange: 'Orange', red: 'Red', pink: 'Pink', lilac: 'Light purple', purple: 'Purple',
+    lightblue: 'Light blue', turquoise: 'Turquoise', blue: 'Blue', navy: 'Navy blue',
+    lightgreen: 'Light green', green: 'Green', black: 'Black',
   },
 
   decors: {

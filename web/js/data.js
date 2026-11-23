@@ -185,15 +185,23 @@ export const QUIZZES = [
 // Rocket garage
 // ---------------------------------------------------------------------------
 export const COLORS = [
+  // grouped by family so that similar colours sit side by side in « Ma fusée »
   { id: 'white', hex: '#f2f2ee', name: 'Blanc' },
-  { id: 'silver', hex: '#b8bdc6', name: 'Argent' },
-  { id: 'red', hex: '#d63340', name: 'Rouge' },
-  { id: 'orange', hex: '#f08a2e', name: 'Orange' },
+  { id: 'beige', hex: '#e6d3ae', name: 'Beige' },
+  { id: 'silver', hex: '#b8bdc6', name: 'Argent', swatch: 'linear-gradient(135deg, #f1f3f6, #b8bdc6 50%, #868c96)' },
+  { id: 'gold', hex: '#d9aa3c', name: 'Doré', swatch: 'linear-gradient(135deg, #fbe7a1, #d9aa3c 50%, #a3741d)' },
   { id: 'yellow', hex: '#f5c533', name: 'Jaune' },
-  { id: 'green', hex: '#3fb36b', name: 'Vert' },
-  { id: 'blue', hex: '#2f6fd8', name: 'Bleu' },
-  { id: 'purple', hex: '#8a5cd6', name: 'Violet' },
+  { id: 'orange', hex: '#f08a2e', name: 'Orange' },
+  { id: 'red', hex: '#d63340', name: 'Rouge' },
   { id: 'pink', hex: '#f06aa8', name: 'Rose' },
+  { id: 'lilac', hex: '#c4a8f4', name: 'Violet clair' },
+  { id: 'purple', hex: '#8a5cd6', name: 'Violet' },
+  { id: 'lightblue', hex: '#80c6f4', name: 'Bleu clair' },
+  { id: 'turquoise', hex: '#2ec4bd', name: 'Turquoise' },
+  { id: 'blue', hex: '#2f6fd8', name: 'Bleu' },
+  { id: 'navy', hex: '#1f306c', name: 'Bleu marine' },
+  { id: 'lightgreen', hex: '#94dc72', name: 'Vert clair' },
+  { id: 'green', hex: '#3fb36b', name: 'Vert' },
   { id: 'black', hex: '#2a2a30', name: 'Noir' },
 ];
 

@@ -119,7 +119,7 @@ export function buildGarage(onChange, sfx, speak) {
     COLORS.forEach((c) => {
       const b = document.createElement('button');
       b.className = 'swatch' + (style[key] === c.id ? ' on' : '');
-      b.style.background = c.hex;
+      b.style.background = c.swatch || c.hex;
       b.setAttribute('aria-label', c.name);
       b.addEventListener('click', () => {
         setStyle({ [key]: c.id });
@@ -131,6 +131,9 @@ export function buildGarage(onChange, sfx, speak) {
       });
       el.appendChild(b);
     });
+    // the row scrolls sideways: show the chosen colour in the middle
+    const on = el.querySelector('.swatch.on');
+    if (on) el.scrollLeft = Math.max(0, on.offsetLeft - el.offsetLeft - (el.clientWidth - on.offsetWidth) / 2);
   };
   const decorRow = () => {
     const el = $('g-decor');
