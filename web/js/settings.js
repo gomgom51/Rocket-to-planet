@@ -12,6 +12,7 @@ const DEFAULTS = {
   countdown: 10,     // 5 or 10
   stops: 'random',   // number of wrong planets before the right one: 'random' | 0 | 1 | 2 | 3
   hint: false,       // show the picture of the destination in the question box
+  lang: 'auto',      // 'auto' (follows the phone) | 'fr' | 'en'
 };
 
 function load() {

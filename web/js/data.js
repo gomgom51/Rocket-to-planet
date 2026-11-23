@@ -1,4 +1,6 @@
-// Bodies of the solar system and every sentence the game says or shows (French).
+// Bodies of the solar system and every sentence the game says or shows, in
+// French. The English sentences are in lang/en.js (same keys); i18n.js swaps
+// them in when the game is in English.
 // Feel free to edit the sentences: they are read aloud by the phone's voice.
 
 export const PLANETS = {
@@ -145,6 +147,8 @@ export const NUMBERS = ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six',
 
 export const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 export const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// "a, b et c"
+const list = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}` : names[0]);
 
 // ---------------------------------------------------------------------------
 // Questions asked in front of a planet: "does it have rings?" etc.
@@ -273,5 +277,27 @@ export const TEXT = {
 
   // progression
   unlocked: 'Nouvelles destinations ! Tu peux maintenant aller sur la Lune, sur Europe, sur Titan, sur Pluton, et sur une comète !',
-  newDecor: (d) => `Nouveau décor pour ta fusée : ${d.name} !`,
+  newDecor: (names) => `${names.length > 1 ? 'Nouveaux décors' : 'Nouveau décor'} pour ta fusée : ${list(names)} ! Va voir dans « Ma fusée ».`,
+  newDecorTitle: (n) => (n > 1 ? 'Nouveaux décors !' : 'Nouveau décor !'),
+  unlockTitle: 'Nouvelles destinations !',
+
+  // menus
+  bonusTitle: 'Destinations bonus',
+  lockedGrid: (n) => `Encore ${n} planète${n > 1 ? 's' : ''} à visiter pour des surprises !`,
+  carnetSpeech: (n) => `Ton carnet de bord ! Tu as ${n} étoile${n > 1 ? 's' : ''}.`,
+  garageSpeech: 'Décore ta fusée !',
+  notYet: 'pas encore',
+  lockedStamp: 'Visite les 7 planètes pour découvrir de nouvelles destinations !',
+  noPhotos: 'Prends des photos souvenirs en arrivant sur les planètes !',
+  decorLocked: (need, have) => `Il faut ${need} étoiles pour ce décor. Tu en as ${have}. Continue tes voyages !`,
+  nameOnRocket: (name) => `${name} sur la fusée`,
+  loadError: 'Oups, le chargement a échoué. Ferme et rouvre le jeu.',
+
+  // reminders and counting during the activities
+  roverIdle: 'Touche un caillou qui brille !',
+  ringsIdle: 'Touche les cristaux qui brillent !',
+  flagIdle: 'Touche le sol pour planter ton drapeau !',
+  jumpIdle: 'Touche l’astronaute pour le faire sauter !',
+  count: (n) => `${NUMBERS[n] || n} !`,
+  wave: '👋 Coucou !',
 };

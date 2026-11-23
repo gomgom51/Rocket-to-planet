@@ -127,7 +127,7 @@ export async function station(ts, api) {
     api.banner(TEXT.stationReply);
     api.speak(TEXT.stationReply);
   };
-  api.showButton('👋 Coucou !', wave);
+  api.showButton(TEXT.wave, wave);
   ts.setTapHandler((x, y) => {
     const p = toScreen(ts, st.getWorldPosition(V3()));
     if (Math.hypot(p.x - x, p.y - y) < 150) wave();

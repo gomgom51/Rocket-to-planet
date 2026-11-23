@@ -1,10 +1,11 @@
 // Game entry point: loading, screens, game flow, render loop.
 
+import { applyDomTexts, setLanguage, fmtDate } from './i18n.js';
 import { THREE, loadTexture, releaseTexture, planetTexUrl } from './gfx.js';
 import { HomeScene, LaunchScene, TravelScene, VictoryScene, renderThumbnails } from './scenes.js';
 import { MarsActivity, RingsActivity, MoonActivity } from './activities.js';
 import { ENCOUNTERS } from './encounters.js';
-import { GarageScene, buildCarnet, buildGarage, fmtDate } from './screens.js';
+import { GarageScene, buildCarnet, buildGarage } from './screens.js';
 import {
   PLANETS, DESTINATIONS, BONUS, ORDER, ALL_BODIES, NUMBERS, TEXT, FEATURES, QUIZZES, cap, pick,
 } from './data.js';
@@ -161,13 +162,13 @@ function buildGrid() {
   if (bonusUnlocked()) {
     const sep = document.createElement('div');
     sep.className = 'grid-sep';
-    sep.textContent = 'Destinations bonus';
+    sep.textContent = TEXT.bonusTitle;
     grid.appendChild(sep);
     BONUS.forEach(card);
   } else {
     const el = document.createElement('div');
     el.className = 'planet-card locked-card';
-    el.innerHTML = `<div class="big">🔒</div>Encore ${7 - visitedBase()} planète${7 - visitedBase() > 1 ? 's' : ''} à visiter pour des surprises !`;
+    el.innerHTML = `<div class="big">🔒</div>${TEXT.lockedGrid(7 - visitedBase())}`;
     grid.appendChild(el);
   }
   $('go').disabled = !selected;
@@ -218,7 +219,7 @@ function goCarnet() {
   setScene(scenes.home);
   show('carnet');
   playMusic('accueil');
-  speak(`Ton carnet de bord ! Tu as ${progress.stars} étoile${progress.stars > 1 ? 's' : ''}.`, { silentWait: false });
+  speak(TEXT.carnetSpeech(progress.stars), { silentWait: false });
 }
 
 function goGarage() {
@@ -228,7 +229,7 @@ function goGarage() {
   setScene(scenes.garage);
   show('garage');
   buildGarage(() => scenes.garage.restyle(), sfx, speak);
-  speak('Décore ta fusée !', { silentWait: false });
+  speak(TEXT.garageSpeech, { silentWait: false });
 }
 
 // ---------------------------------------------------------------------------
@@ -654,14 +655,13 @@ async function playRound(destId) {
     if (!wasUnlocked && bonusUnlocked() && !progress.unlockSeen) {
       progress.unlockSeen = true;
       saveProgress();
-      await celebrate('Nouvelles destinations !', BONUS, TEXT.unlocked); guard(id);
+      await celebrate(TEXT.unlockTitle, BONUS, TEXT.unlocked); guard(id);
     }
     const decors = newDecors();
     if (decors.length) {
       markDecorsSeen();
       const names = decors.map((d) => d.name);
-      const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}` : names[0];
-      await celebrate(names.length > 1 ? 'Nouveaux décors !' : 'Nouveau décor !', [], TEXT.newDecor({ name: list }) + ' Va voir dans « Ma fusée ».'); guard(id);
+      await celebrate(TEXT.newDecorTitle(names.length), [], TEXT.newDecor(names)); guard(id);
     }
     document.querySelector('.victory-foot').classList.add('ready');
   } catch (e) {
@@ -675,7 +675,7 @@ function buildMapLabels(destId) {
   const box = $('v-labels');
   box.innerHTML = '';
   mapLabels = [
-    { id: 'earth', text: 'Terre', cls: 'map-label', below: true },
+    { id: 'earth', text: cap(PLANETS.earth.short || PLANETS.earth.name), cls: 'map-label', below: true },
     { id: destId, text: cap(PLANETS[destId].short || PLANETS[destId].name), cls: 'map-label dest', below: false },
   ].map((l) => {
     const el = document.createElement('div');
@@ -784,7 +784,7 @@ document.querySelectorAll('.seg').forEach((seg) => {
     if (!b) return;
     const key = seg.dataset.key;
     const v = b.dataset.v;
-    settings[key] = key === 'countdown' ? Number(v) : v === 'random' ? 'random' : Number(v);
+    if (key === 'lang') { setLanguage(v); sfx.select(); } else settings[key] = key === 'countdown' ? Number(v) : v === 'random' ? 'random' : Number(v);
     seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
   });
 });
@@ -849,12 +849,13 @@ function frame() {
 // Start
 // ---------------------------------------------------------------------------
 (async function start() {
+  applyDomTexts();
   resize();
   try {
     await loadAll();
   } catch (e) {
     console.error(e);
-    $('loading-error').textContent = 'Oups, le chargement a échoué. Ferme et rouvre le jeu.';
+    $('loading-error').textContent = TEXT.loadError;
     $('loading-error').classList.remove('hidden');
     return;
   }

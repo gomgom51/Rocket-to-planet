@@ -28,7 +28,7 @@ import java.util.Set;
 
 /**
  * Hosts the game (HTML/JavaScript in the app assets) in a full-screen WebView
- * and gives it a French voice through Android's TextToSpeech engine.
+ * and gives it a voice (French or English) through Android's TextToSpeech engine.
  */
 public class MainActivity extends Activity {
 
@@ -37,6 +37,10 @@ public class MainActivity extends Activity {
     private WebView webView;
     private TextToSpeech tts;
     private volatile boolean ttsReady = false;
+    /** Language asked by the game: "fr" or "en". */
+    private volatile String voiceLang =
+            "fr".equals(Locale.getDefault().getLanguage()) ? "fr" : "en";
+    private volatile String appliedLang = null;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -89,11 +93,7 @@ public class MainActivity extends Activity {
     private void initTts() {
         tts = new TextToSpeech(this, status -> {
             if (status != TextToSpeech.SUCCESS) return;
-            int r = tts.setLanguage(Locale.FRANCE);
-            if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
-                tts.setLanguage(Locale.FRENCH);
-            }
-            pickBestFrenchVoice();
+            applyVoiceLanguage();
             tts.setSpeechRate(0.9f);
             tts.setPitch(1.08f);
             tts.setAudioAttributes(new AudioAttributes.Builder()
@@ -107,23 +107,52 @@ public class MainActivity extends Activity {
                 @Override public void onStop(String id, boolean interrupted) { notifyDone(id); }
             });
             ttsReady = true;
+            // the game may have changed the language while the engine was starting
+            if (!voiceLang.equals(appliedLang)) applyVoiceLanguage();
         });
     }
 
-    /** Prefer an offline, good quality French (France) voice when several exist. */
-    private void pickBestFrenchVoice() {
+    /**
+     * Switch the voice to the game language. For English, the phone's own
+     * variant is preferred (en-GB on a British phone), otherwise en-US.
+     */
+    private synchronized void applyVoiceLanguage() {
+        if (tts == null) return;
+        String lang = voiceLang;
+        Locale sys = Locale.getDefault();
+        Locale wanted = "en".equals(lang) ? Locale.US : Locale.FRANCE;
+        if (lang.equals(sys.getLanguage()) && !sys.getCountry().isEmpty()) {
+            try {
+                wanted = new Locale.Builder().setLanguage(lang).setRegion(sys.getCountry()).build();
+            } catch (Exception ignored) {
+                // keep the default country
+            }
+        }
+        int r = tts.setLanguage(wanted);
+        if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+            tts.setLanguage("en".equals(lang) ? Locale.ENGLISH : Locale.FRENCH);
+        }
+        pickBestVoice(lang, wanted.getCountry());
+        appliedLang = lang;
+    }
+
+    /** Prefer an offline, good quality voice of the right country when several exist. */
+    private void pickBestVoice(String lang, String country) {
         try {
             Set<Voice> voices = tts.getVoices();
             if (voices == null) return;
             Voice best = null;
+            int bestScore = -1;
             for (Voice v : voices) {
                 Locale l = v.getLocale();
-                if (l == null || !"fr".equals(l.getLanguage())) continue;
+                if (l == null || !lang.equals(l.getLanguage())) continue;
                 if (v.isNetworkConnectionRequired()) continue;
                 if (v.getFeatures() != null && v.getFeatures().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)) continue;
-                int score = v.getQuality() + ("FR".equals(l.getCountry()) ? 1000 : 0);
-                int bestScore = best == null ? -1 : best.getQuality() + ("FR".equals(best.getLocale().getCountry()) ? 1000 : 0);
-                if (score > bestScore) best = v;
+                int score = v.getQuality() + (country.equals(l.getCountry()) ? 1000 : 0);
+                if (score > bestScore) {
+                    best = v;
+                    bestScore = score;
+                }
             }
             if (best != null) tts.setVoice(best);
         } catch (Exception ignored) {
@@ -150,6 +179,17 @@ public class MainActivity extends Activity {
             params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f);
             int r = tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, id);
             if (r != TextToSpeech.SUCCESS) notifyDone(id);
+        }
+
+        /** Called by the game with "fr" or "en". */
+        @JavascriptInterface
+        public void setLanguage(String lang) {
+            String l = "en".equals(lang) ? "en" : "fr";
+            voiceLang = l;
+            if (ttsReady && !l.equals(appliedLang)) {
+                if (tts != null) tts.stop();
+                applyVoiceLanguage();
+            }
         }
 
         @JavascriptInterface

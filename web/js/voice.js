@@ -1,4 +1,4 @@
-// Text-to-speech in French.
+// Text-to-speech in the game language (French or English).
 // In the Android app, the native TextToSpeech engine is used through the
 // `AndroidBridge` JavaScript interface (WebView has no speechSynthesis).
 // In a desktop/mobile browser, the Web Speech API is used instead.
@@ -6,27 +6,41 @@
 import { settings } from './settings.js';
 import { timeScale } from './util.js';
 import { setDuck } from './audio.js';
+import { LANG, locale, onLanguageChange } from './i18n.js';
 
 const bridge = window.AndroidBridge;
 const pending = new Map();
 let counter = 0;
-let frVoice = null;
+let browserVoice = null;
 
 window.__speechDone = (id) => {
   const done = pending.get(String(id));
   if (done) { pending.delete(String(id)); done(); }
 };
 
+// Best voice for the language: the exact variant first (fr-FR, or the phone's
+// English such as en-GB), installed on the device if possible.
 function pickBrowserVoice() {
   if (!('speechSynthesis' in window)) return null;
   const voices = speechSynthesis.getVoices();
-  const fr = voices.filter((v) => v.lang && v.lang.toLowerCase().startsWith('fr'));
-  return fr.find((v) => /fr[-_]FR/i.test(v.lang) && v.localService) || fr.find((v) => /fr[-_]FR/i.test(v.lang)) || fr[0] || null;
+  const same = voices.filter((v) => v.lang && v.lang.toLowerCase().startsWith(LANG));
+  const exact = new RegExp('^' + locale().replace('-', '[-_]') + '$', 'i');
+  return same.find((v) => exact.test(v.lang) && v.localService) || same.find((v) => exact.test(v.lang))
+    || same.find((v) => v.localService) || same[0] || null;
+}
+
+// Tell the voice which language to use (the Android app picks its own voice).
+function updateLanguage() {
+  if ('speechSynthesis' in window) browserVoice = pickBrowserVoice();
+  try {
+    if (bridge && typeof bridge.setLanguage === 'function') bridge.setLanguage(LANG);
+  } catch (e) { /* older app: French only */ }
 }
 if ('speechSynthesis' in window) {
-  frVoice = pickBrowserVoice();
-  speechSynthesis.onvoiceschanged = () => { frVoice = pickBrowserVoice(); };
+  speechSynthesis.onvoiceschanged = () => { browserVoice = pickBrowserVoice(); };
 }
+updateLanguage();
+onLanguageChange(updateLanguage);
 
 // Rough duration of a sentence, used as a safety net and when the voice is off.
 function estimate(text) {
@@ -71,8 +85,8 @@ export function speak(text, { silentWait = true } = {}) {
         bridge.speak(text, id);
       } else if ('speechSynthesis' in window) {
         const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'fr-FR';
-        if (frVoice) u.voice = frVoice;
+        u.lang = locale();
+        if (browserVoice) u.voice = browserVoice;
         u.rate = 0.92;
         u.pitch = 1.08;
         u.onend = finish;

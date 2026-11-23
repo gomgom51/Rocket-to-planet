@@ -14,7 +14,7 @@
   <!-- Loading -->
   <section id="loading" class="screen active">
     <div class="loading-box">
-      <div class="loading-title">Voyage vers les planètes</div>
+      <div class="loading-title" data-i18n="title">Voyage vers les planètes</div>
       <div class="bar"><div id="bar-fill"></div></div>
       <div id="loading-error" class="hidden"></div>
     </div>
@@ -22,42 +22,42 @@
 
   <!-- Home -->
   <section id="home" class="screen">
-    <h1 class="title">Voyage<br>vers les planètes</h1>
+    <h1 class="title" data-i18n-html="homeTitle">Voyage<br>vers les planètes</h1>
     <button id="play" class="big-btn primary">
       <svg viewBox="0 0 24 24" class="ico"><path d="M8 5v14l11-7z"/></svg>
-      Jouer
+      <span data-i18n="play">Jouer</span>
     </button>
     <div class="home-row">
       <button id="garage-btn" class="mid-btn">
         <svg viewBox="0 0 24 24" class="ico"><path d="M12 2c3 2 5 6 5 10l2 3v4l-3-2h-8l-3 2v-4l2-3c0-4 2-8 5-10zm0 6.5a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z"/></svg>
-        Ma fusée
+        <span data-i18n="myRocket">Ma fusée</span>
       </button>
       <button id="carnet-btn" class="mid-btn">
         <svg viewBox="0 0 24 24" class="ico"><path d="M6 2h11a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm1 3v14h2V5zm5 2v2h5V7zm0 4v2h5v-2z"/></svg>
-        Mon carnet
+        <span data-i18n="myCarnet">Mon carnet</span>
       </button>
     </div>
-    <button id="settings-btn" class="corner-btn right" aria-label="Réglages">
+    <button id="settings-btn" class="corner-btn right" aria-label="Réglages" data-i18n-aria="settings">
       <svg viewBox="0 0 24 24" class="ico"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
     </button>
   </section>
 
   <!-- Destination choice -->
   <section id="choose" class="screen">
-    <button class="corner-btn left back" data-back="home" aria-label="Retour">
+    <button class="corner-btn left back" data-back="home" aria-label="Retour" data-i18n-aria="back">
       <svg viewBox="0 0 24 24" class="ico"><path d="M15.5 4 7.5 12l8 8 1.6-1.6L10.7 12l6.4-6.4z"/></svg>
     </button>
-    <h2 class="screen-title">Où veux-tu aller&nbsp;?</h2>
+    <h2 class="screen-title" data-i18n="choose">Où veux-tu aller&nbsp;?</h2>
     <div id="planet-grid"></div>
     <button id="go" class="big-btn primary" disabled>
       <svg viewBox="0 0 24 24" class="ico"><path d="M12 2c3 2 5 6 5 10l2 3v4l-3-2h-8l-3 2v-4l2-3c0-4 2-8 5-10zm0 6.5a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z"/></svg>
-      C’est parti&nbsp;!
+      <span data-i18n="go">C’est parti&nbsp;!</span>
     </button>
   </section>
 
   <!-- In-game HUD -->
   <section id="hud" class="screen">
-    <button id="quit" class="corner-btn left small" aria-label="Accueil">
+    <button id="quit" class="corner-btn left small" aria-label="Accueil" data-i18n-aria="home">
       <svg viewBox="0 0 24 24" class="ico"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg>
     </button>
     <div id="dest-chip" class="chip"></div>
@@ -65,11 +65,11 @@
     <div id="planet-label"></div>
     <div id="banner"></div>
     <button id="action-btn" class="big-btn primary"></button>
-    <button id="photo-btn" aria-label="Prendre une photo">
+    <button id="photo-btn" aria-label="Prendre une photo" data-i18n-aria="takePhoto">
       <svg viewBox="0 0 24 24" class="ico"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
     </button>
     <div id="dialog" class="panel">
-      <button id="repeat" class="speak-btn" aria-label="Répéter">
+      <button id="repeat" class="speak-btn" aria-label="Répéter" data-i18n-aria="repeat">
         <svg viewBox="0 0 24 24" class="ico"><path d="M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
       </button>
       <img id="dialog-hint" alt="">
@@ -78,11 +78,11 @@
       <div id="dialog-buttons">
         <button id="yes" class="answer yes">
           <svg viewBox="0 0 24 24" class="ico"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
-          Oui
+          <span data-i18n="yes">Oui</span>
         </button>
         <button id="no" class="answer no">
           <svg viewBox="0 0 24 24" class="ico"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg>
-          Non
+          <span data-i18n="no">Non</span>
         </button>
       </div>
     </div>
@@ -101,12 +101,12 @@
       <div class="row">
         <button id="again" class="big-btn primary">
           <svg viewBox="0 0 24 24" class="ico"><path d="M12 5V1L7 6l5 5V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>
-          Rejouer
+          <span data-i18n="again">Rejouer</span>
         </button>
-        <button id="to-carnet" class="big-btn secondary" aria-label="Mon carnet">
+        <button id="to-carnet" class="big-btn secondary" aria-label="Mon carnet" data-i18n-aria="myCarnet">
           <svg viewBox="0 0 24 24" class="ico"><path d="M6 2h11a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm1 3v14h2V5zm5 2v2h5V7zm0 4v2h5v-2z"/></svg>
         </button>
-        <button id="to-home" class="big-btn secondary" aria-label="Accueil">
+        <button id="to-home" class="big-btn secondary" aria-label="Accueil" data-i18n-aria="home">
           <svg viewBox="0 0 24 24" class="ico"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg>
         </button>
       </div>
@@ -115,28 +115,28 @@
 
   <!-- Carnet de bord -->
   <section id="carnet" class="screen page">
-    <button class="corner-btn left back" data-back="home" aria-label="Retour">
+    <button class="corner-btn left back" data-back="home" aria-label="Retour" data-i18n-aria="back">
       <svg viewBox="0 0 24 24" class="ico"><path d="M15.5 4 7.5 12l8 8 1.6-1.6L10.7 12l6.4-6.4z"/></svg>
     </button>
-    <h2 class="screen-title">Mon carnet de bord</h2>
+    <h2 class="screen-title" data-i18n="myCarnetTitle">Mon carnet de bord</h2>
     <div class="page-scroll">
-      <h3 class="section-title">Mes tampons</h3>
+      <h3 class="section-title" data-i18n="stamps">Mes tampons</h3>
       <div id="stamps"></div>
-      <h3 class="section-title">Mes photos</h3>
+      <h3 class="section-title" data-i18n="photos">Mes photos</h3>
       <div id="photos"></div>
     </div>
   </section>
 
   <!-- Rocket garage -->
   <section id="garage" class="screen">
-    <button class="corner-btn left back" data-back="home" aria-label="Retour">
+    <button class="corner-btn left back" data-back="home" aria-label="Retour" data-i18n-aria="back">
       <svg viewBox="0 0 24 24" class="ico"><path d="M15.5 4 7.5 12l8 8 1.6-1.6L10.7 12l6.4-6.4z"/></svg>
     </button>
-    <h2 class="screen-title">Ma fusée</h2>
+    <h2 class="screen-title" data-i18n="myRocket">Ma fusée</h2>
     <div class="garage-panel panel">
-      <div class="g-row"><div class="g-label">Couleur</div><div id="g-body" class="swatches"></div></div>
-      <div class="g-row"><div class="g-label">Ailerons</div><div id="g-fins" class="swatches"></div></div>
-      <div class="g-row"><div class="g-label">Décor</div><div id="g-decor" class="decors"></div></div>
+      <div class="g-row"><div class="g-label" data-i18n="color">Couleur</div><div id="g-body" class="swatches"></div></div>
+      <div class="g-row"><div class="g-label" data-i18n="fins">Ailerons</div><div id="g-fins" class="swatches"></div></div>
+      <div class="g-row"><div class="g-label" data-i18n="decor">Décor</div><div id="g-decor" class="decors"></div></div>
       <label id="g-name-row" class="switch"><input id="g-name" type="checkbox"><span id="g-name-label">Mon prénom sur la fusée</span></label>
     </div>
   </section>
@@ -152,39 +152,44 @@
       <div id="celebrate-title" class="celebrate-title"></div>
       <div id="celebrate-imgs" class="celebrate-imgs"></div>
       <div id="celebrate-text" class="celebrate-text"></div>
-      <button id="celebrate-ok" class="big-btn primary">Super !</button>
+      <button id="celebrate-ok" class="big-btn primary" data-i18n="great">Super&nbsp;!</button>
     </div>
   </section>
 
   <!-- Parent settings -->
   <section id="settings" class="modal">
     <div class="panel settings-panel">
-      <h2>Réglages (parents)</h2>
-      <label class="field">Prénom de l’enfant
-        <input id="set-name" type="text" maxlength="20" autocomplete="off" placeholder="(facultatif)">
+      <h2 data-i18n="settingsTitle">Réglages (parents)</h2>
+      <label class="field"><span data-i18n="childName">Prénom de l’enfant</span>
+        <input id="set-name" type="text" maxlength="20" autocomplete="off" placeholder="(facultatif)" data-i18n-ph="optional">
       </label>
-      <label class="switch"><input id="set-voice" type="checkbox"><span>Voix qui lit les textes</span></label>
-      <label class="switch"><input id="set-sound" type="checkbox"><span>Sons</span></label>
-      <label class="switch"><input id="set-music" type="checkbox"><span>Musique</span></label>
-      <label class="field">Volume
+      <div class="field">Langue / Language
+        <div class="seg" data-key="lang">
+          <button data-v="auto">Auto</button><button data-v="fr">Français</button><button data-v="en">English</button>
+        </div>
+      </div>
+      <label class="switch"><input id="set-voice" type="checkbox"><span data-i18n="voice">Voix qui lit les textes</span></label>
+      <label class="switch"><input id="set-sound" type="checkbox"><span data-i18n="sounds">Sons</span></label>
+      <label class="switch"><input id="set-music" type="checkbox"><span data-i18n="music">Musique</span></label>
+      <label class="field"><span data-i18n="volume">Volume</span>
         <input id="set-volume" type="range" min="0.1" max="1" step="0.05">
       </label>
-      <div class="field">Compte à rebours
+      <div class="field"><span data-i18n="countdown">Compte à rebours</span>
         <div class="seg" data-key="countdown">
           <button data-v="5">5</button><button data-v="10">10</button>
         </div>
       </div>
-      <div class="field">Planètes à passer avant la bonne
+      <div class="field"><span data-i18n="stops">Planètes à passer avant la bonne</span>
         <div class="seg" data-key="stops">
-          <button data-v="0">0</button><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="random">Au hasard</button>
+          <button data-v="0">0</button><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="random" data-i18n="random">Au hasard</button>
         </div>
       </div>
-      <label class="switch"><input id="set-hint" type="checkbox"><span>Aide&nbsp;: montrer l’image de la planète cherchée</span></label>
+      <label class="switch"><input id="set-hint" type="checkbox"><span data-i18n="hint">Aide&nbsp;: montrer l’image de la planète cherchée</span></label>
       <details class="credits">
-        <summary>Crédits</summary>
-        <p>Textures des planètes&nbsp;: Solar System Scope (solarsystemscope.com), licence CC BY 4.0, d’après des données de la NASA. Terre&nbsp;: NASA Earth Observatory, Blue Marble Next Generation (domaine public). Lune&nbsp;: NASA Scientific Visualization Studio. Europe&nbsp;: USGS Astrogeology / NASA/JPL (domaine public). Titan&nbsp;: NASA/JPL-Caltech/Space Science Institute. Pluton&nbsp;: NASA/JHUAPL/SwRI. Vénus, anneaux de Saturne, comète, Voie lactée&nbsp;: générés par le jeu.</p>
-        <p>Musiques créées avec Suno. Son du décollage&nbsp;: « Seamless rocket booster roar &amp; crackle », freesound_community (Pixabay).</p>
-        <p>Moteur 3D&nbsp;: three.js (licence MIT). Police&nbsp;: Nunito (SIL Open Font License).</p>
+        <summary data-i18n="credits">Crédits</summary>
+        <p data-i18n-html="credits1">Textures des planètes&nbsp;: Solar System Scope (solarsystemscope.com), licence CC BY 4.0, d’après des données de la NASA. Terre&nbsp;: NASA Earth Observatory, Blue Marble Next Generation (domaine public). Lune&nbsp;: NASA Scientific Visualization Studio. Europe&nbsp;: USGS Astrogeology / NASA/JPL (domaine public). Titan&nbsp;: NASA/JPL-Caltech/Space Science Institute. Pluton&nbsp;: NASA/JHUAPL/SwRI. Vénus, anneaux de Saturne, comète, Voie lactée&nbsp;: générés par le jeu.</p>
+        <p data-i18n-html="credits2">Musiques créées avec Suno. Son du décollage&nbsp;: « Seamless rocket booster roar &amp; crackle », freesound_community (Pixabay).</p>
+        <p data-i18n-html="credits3">Moteur 3D&nbsp;: three.js (licence MIT). Police&nbsp;: Nunito (SIL Open Font License).</p>
       </details>
       <button id="settings-close" class="big-btn primary">OK</button>
     </div>
@@ -193,10 +198,10 @@
   <!-- Confirm leaving the game -->
   <section id="confirm" class="modal">
     <div class="panel confirm-panel">
-      <div class="confirm-text">Retourner à l’accueil&nbsp;?</div>
+      <div class="confirm-text" data-i18n="confirm">Retourner à l’accueil&nbsp;?</div>
       <div class="row">
-        <button id="confirm-yes" class="answer yes">Oui</button>
-        <button id="confirm-no" class="answer no">Non</button>
+        <button id="confirm-yes" class="answer yes" data-i18n="yes">Oui</button>
+        <button id="confirm-no" class="answer no" data-i18n="no">Non</button>
       </div>
     </div>
   </section>

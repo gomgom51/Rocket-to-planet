@@ -4,7 +4,7 @@
 
 import { THREE, createSky, createPlanet, createRocket } from './gfx.js';
 import { createRover, createAstronaut, createFlag, createCrystal, rockGeometry, glowSprite } from './models.js';
-import { PLANETS, TEXT, NUMBERS, faceRotation } from './data.js';
+import { PLANETS, TEXT, faceRotation } from './data.js';
 import { tween, wait, clamp, lerp, smooth, easeInOutCubic, easeOutCubic } from './util.js';
 import { getStyle } from './progress.js';
 import { settings } from './settings.js';
@@ -243,7 +243,7 @@ export class MarsActivity extends BaseActivity {
     let count = 0;
     let busy = false;
     const total = this.rocks.length;
-    this.idleReminder(api, 'Touche un caillou qui brille !', () => count >= total);
+    this.idleReminder(api, TEXT.roverIdle, () => count >= total);
     await new Promise((resolve) => {
       this.tapHandler = async (x, y) => {
         if (busy) return;
@@ -263,7 +263,7 @@ export class MarsActivity extends BaseActivity {
         count++;
         api.sfx.catchStar();
         api.addStars(1, x, y);
-        api.speak(`${NUMBERS[count]} !`, { silentWait: false });
+        api.speak(TEXT.count(count), { silentWait: false });
         busy = false;
         if (count >= total) { this.tapHandler = null; resolve(); }
       };
@@ -388,7 +388,7 @@ export class RingsActivity extends BaseActivity {
     api.speak(TEXT.ringsIntro);
     let caught = 0;
     const total = 6;
-    this.idleReminder(api, 'Touche les cristaux qui brillent !', () => caught >= total);
+    this.idleReminder(api, TEXT.ringsIdle, () => caught >= total);
     this.tapHandler = (x, y) => {
       this.lastTap = this.t;
       let best = null;
@@ -406,7 +406,7 @@ export class RingsActivity extends BaseActivity {
       this.sparkle(best.obj.position, 0x9fe6ff);
       api.sfx.catchStar();
       api.addStars(1, x, y);
-      api.speak(`${NUMBERS[caught]} !`, { silentWait: false });
+      api.speak(TEXT.count(caught), { silentWait: false });
     };
     while (caught < total) {
       this.spawnCrystal();
@@ -516,7 +516,7 @@ export class MoonActivity extends BaseActivity {
     api.speak(TEXT.flagIntro);
     // 1. plant the flag where the ground is touched
     let planted = false;
-    this.idleReminder(api, 'Touche le sol pour planter ton drapeau !', () => planted);
+    this.idleReminder(api, TEXT.flagIdle, () => planted);
     await new Promise((resolve) => {
       this.tapHandler = (x, y) => {
         this.lastTap = this.t;
@@ -538,7 +538,7 @@ export class MoonActivity extends BaseActivity {
     // 2. jump!
     let jumps = 0;
     let busy = false;
-    this.idleReminder(api, 'Touche l’astronaute pour le faire sauter !', () => jumps >= 3);
+    this.idleReminder(api, TEXT.jumpIdle, () => jumps >= 3);
     await new Promise((resolve) => {
       this.tapHandler = async () => {
         if (busy) return;

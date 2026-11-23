@@ -58,8 +58,11 @@ Les planètes déjà visitées reçoivent une étoile dorée dans le menu.
 * **Pas d’échec** : une mauvaise réponse n’est jamais punie. Le jeu corrige avec
   douceur (« Regarde bien… c’est Jupiter ! ») et donne un indice sur la planète
   cherchée (« Saturne a de magnifiques anneaux »).
-* **Tout est lu à voix haute** (voix française du téléphone). Le bouton 🔊 de la
+* **Tout est lu à voix haute** (voix du téléphone). Le bouton 🔊 de la
   boîte de texte répète la question.
+* **En français ou en anglais** : le jeu suit la langue du téléphone (français
+  si le téléphone est en français, anglais sinon). On peut aussi la choisir
+  dans les réglages.
 * **Sons doux** : pas de bruit soudain ni fort (l’hyperacousie est fréquente). Le
   grondement du décollage monte progressivement. Le volume se règle.
 * **Grands boutons**, toujours au même endroit (Oui à gauche en vert, Non à droite).
@@ -73,6 +76,7 @@ Les planètes déjà visitées reçoivent une étoile dorée dans le menu.
 Roue dentée ⚙ en haut à droite de l’écran d’accueil :
 
 * **Prénom** de l’enfant (« Bravo Léa ! »)
+* **Langue / Language** : Auto (suit le téléphone), Français ou English
 * Voix on/off, sons on/off, musique on/off, volume
 * Compte à rebours de **5 ou 10**
 * **Nombre de planètes à passer** avant la bonne : 0, 1, 2, 3 ou au hasard
@@ -111,10 +115,11 @@ les réglages et les étoiles des planètes visitées sont conservés.
 Le jeu fonctionne **entièrement hors ligne** (aucune connexion, aucune
 publicité, aucune donnée envoyée).
 
-### Si la voix ne parle pas (ou pas en français)
+### Si la voix ne parle pas (ou pas dans la bonne langue)
 
 Paramètres Android → *Accessibilité* (ou *Système → Langues*) → **Synthèse
-vocale** : choisir le moteur Google et installer la voix **Français (France)**.
+vocale** : choisir le moteur Google et installer la voix **Français (France)**
+(ou **English** pour jouer en anglais).
 
 ## Essayer dans un navigateur (ordinateur)
 
@@ -141,7 +146,10 @@ désinstaller. Ce n’est pas une clé adaptée à une publication sur le Play S
 ## Organisation du code
 
 * `web/` : le jeu (HTML, CSS, JavaScript, moteur 3D three.js, textures).
-  * `js/data.js` : les planètes et **toutes les phrases** du jeu (faciles à modifier).
+  * `js/data.js` : les planètes et **toutes les phrases** du jeu en français
+    (faciles à modifier).
+  * `js/lang/en.js` : les mêmes phrases en anglais.
+  * `js/i18n.js` : le choix de la langue (français ou anglais).
   * `js/scenes.js` : les scènes 3D (accueil, pas de tir, voyage, carte de victoire).
   * `js/encounters.js` : les rencontres pendant le voyage.
   * `js/activities.js` : les activités à l’arrivée (Mars, Saturne, la Lune).
@@ -149,7 +157,7 @@ désinstaller. Ce n’est pas une clé adaptée à une publication sur le Play S
   * `js/progress.js` : les étoiles, tampons, photos et le style de la fusée.
   * `js/main.js` : le déroulement de la partie et les écrans.
 * `android/` : la petite application Android qui affiche le jeu (WebView) et lui
-  donne la voix française (TextToSpeech).
+  donne la voix (TextToSpeech, en français ou en anglais).
 * `tools/` : scripts pour préparer les textures et l’icône.
 
 ## Crédits

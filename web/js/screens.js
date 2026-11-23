@@ -1,18 +1,13 @@
 // "Mon carnet de bord" (stamps + photos) and "Ma fusée" (rocket garage).
 
 import { THREE, createSky, createRocket, paintRocket } from './gfx.js';
-import { PLANETS, DESTINATIONS, BONUS, COLORS, DECORS, cap } from './data.js';
+import { PLANETS, DESTINATIONS, BONUS, COLORS, DECORS, TEXT, cap } from './data.js';
 import { progress, getStyle, setStyle, visitCount, visitedBase, bonusUnlocked, getPhotos } from './progress.js';
 import { settings } from './settings.js';
+import { fmtDate } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
-
-const fmtDate = (ms) => {
-  const d = new Date(ms);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-};
-export { fmtDate };
 
 // ---------------------------------------------------------------------------
 // Carnet
@@ -28,21 +23,21 @@ export function buildCarnet(thumbs) {
     el.className = 'stamp' + (n ? '' : ' empty');
     el.style.transform = `rotate(${((i * 37) % 9) - 4}deg)`;
     el.innerHTML = `<img src="${thumbs[id]}" alt=""><div class="s-name">${cap(p.name)}</div>` +
-      (n ? `<div class="s-date">${fmtDate(progress.visits[id].first)}</div>` : '<div class="s-date">pas encore</div>') +
+      (n ? `<div class="s-date">${fmtDate(progress.visits[id].first)}</div>` : `<div class="s-date">${TEXT.notYet}</div>`) +
       (n > 1 ? `<div class="s-count">×${n}</div>` : '');
     stamps.appendChild(el);
   });
   if (!bonusUnlocked()) {
     const el = document.createElement('div');
     el.className = 'stamp locked';
-    el.innerHTML = `🔒 Visite les 7 planètes pour découvrir de nouvelles destinations !<br><b>${visitedBase()} / 7</b>`;
+    el.innerHTML = `🔒 ${TEXT.lockedStamp}<br><b>${visitedBase()} / 7</b>`;
     stamps.appendChild(el);
   }
   const photos = $('photos');
   photos.innerHTML = '';
   const list = getPhotos().slice().reverse();
   if (!list.length) {
-    photos.innerHTML = '<div class="empty-note">Prends des photos souvenirs en arrivant sur les planètes !</div>';
+    photos.innerHTML = `<div class="empty-note">${TEXT.noPhotos}</div>`;
   }
   list.forEach((ph) => {
     const img = document.createElement('img');
@@ -150,7 +145,7 @@ export function buildGarage(onChange, sfx, speak) {
       b.addEventListener('click', () => {
         if (locked) {
           sfx.gentle();
-          speak(`Il faut ${d.stars} étoiles pour ce décor. Tu en as ${progress.stars}. Continue tes voyages !`, { silentWait: false });
+          speak(TEXT.decorLocked(d.stars, progress.stars), { silentWait: false });
           return;
         }
         setStyle({ decor: d.id });
@@ -168,6 +163,6 @@ export function buildGarage(onChange, sfx, speak) {
   const hasName = !!settings.name.trim();
   $('g-name-row').style.display = hasName ? 'flex' : 'none';
   $('g-name').checked = style.name !== false;
-  $('g-name-label').textContent = hasName ? `${settings.name.trim()} sur la fusée` : '';
+  $('g-name-label').textContent = hasName ? TEXT.nameOnRocket(settings.name.trim()) : '';
   $('g-name').onchange = () => { setStyle({ name: $('g-name').checked }); sfx.select(); onChange(); };
 }
