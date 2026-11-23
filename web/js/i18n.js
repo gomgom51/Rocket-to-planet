@@ -77,6 +77,11 @@ export function applyDomTexts() {
   const en = LANG === 'en';
   document.documentElement.lang = LANG;
   document.title = en ? EN.ui.title : frDom.title;
+  // Browser version: name of the app when it is added to the home screen
+  const manifest = document.getElementById('manifest');
+  if (manifest) manifest.setAttribute('href', `manifest-${LANG}.webmanifest`);
+  const appTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (appTitle) appTitle.setAttribute('content', en ? 'Planet Rocket' : 'Fusée Planètes');
   for (const [name, , set] of ATTRS) {
     document.querySelectorAll(attrSelector(name)).forEach((el) => {
       const key = el.dataset[name];

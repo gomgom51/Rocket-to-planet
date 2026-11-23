@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'">
   <meta name="theme-color" content="#02030a">
+  <!-- Browser version: icon, and "Add to home screen" as a full-screen app -->
+  <link rel="manifest" id="manifest" href="manifest-fr.webmanifest">
+  <link rel="icon" type="image/png" href="icons/favicon-48.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Fusée Planètes">
   <title>Voyage vers les planètes</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -210,6 +218,12 @@
   <div id="flash"></div>
   <div id="polaroid"><img alt=""></div>
   <div id="fade"></div>
+
+  <!-- Browser on a phone held sideways: the game is made for portrait -->
+  <div id="rotate">
+    <svg viewBox="0 0 24 24" class="rotate-ico"><path d="M8 1.5h8A2.5 2.5 0 0 1 18.5 4v16a2.5 2.5 0 0 1-2.5 2.5H8A2.5 2.5 0 0 1 5.5 20V4A2.5 2.5 0 0 1 8 1.5zm0 2a.5.5 0 0 0-.5.5v14h9V4a.5.5 0 0 0-.5-.5zm4 15.75a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>
+    <div data-i18n="rotate">Tourne ton téléphone pour jouer</div>
+  </div>
 
   <script type="module" src="js/main.js"></script>
 </body>

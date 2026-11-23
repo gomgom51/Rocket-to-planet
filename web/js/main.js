@@ -63,7 +63,30 @@ function show(id) {
   document.querySelectorAll('.screen').forEach((el) => el.classList.toggle('active', el.id === id));
   screen = id;
   document.body.dataset.screen = id;
+  if (id === 'home') releaseBackGuard(); else armBackGuard();
 }
+
+// Browser version: the phone's back button (or swipe) goes through
+// handleBack() like in the Android app, instead of leaving the game.
+// A history entry is added when leaving the home screen and used up by
+// "back"; it is put back as long as the game handles the button.
+let backGuard = false;
+let skipPop = false;
+function armBackGuard() {
+  if (window.AndroidBridge || backGuard || screen === 'home' || screen === 'loading') return;
+  try { history.pushState({ fusee: 1 }, ''); backGuard = true; } catch (e) { /* ignore */ }
+}
+function releaseBackGuard() {
+  if (!backGuard) return;
+  backGuard = false;
+  skipPop = true;
+  history.back();
+}
+window.addEventListener('popstate', () => {
+  if (skipPop) { skipPop = false; return; }
+  backGuard = false;
+  if (window.handleBack && window.handleBack()) armBackGuard();
+});
 const fadeEl = $('fade');
 async function fade(on) {
   fadeEl.classList.toggle('on', on);

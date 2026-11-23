@@ -276,5 +276,6 @@ export default {
     credits2: 'Music made with Suno. Liftoff sound: “Seamless rocket booster roar &amp; crackle”, freesound_community (Pixabay).',
     credits3: '3D engine: three.js (MIT license). Font: Nunito (SIL Open Font License).',
     confirm: 'Go back to the home screen?',
+    rotate: 'Turn your phone upright to play',
   },
 };

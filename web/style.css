@@ -332,3 +332,14 @@ body[data-screen="loading"] .star-count { display: none; }
 
 /* language choice: three buttons on one line */
 .seg[data-key="lang"] button { padding: 9px 12px; font-size: 16px; }
+
+/* Browser on a phone held sideways (the Android app is always upright) */
+#rotate {
+  position: fixed; inset: 0; z-index: 90; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: radial-gradient(circle at 50% 40%, #1c3270, #02030a 75%); color: #fff; font-size: 26px; font-weight: 800; text-align: center; padding: 24px;
+}
+.rotate-ico { width: 72px; height: 72px; fill: #ffd34d; animation: rotate-phone 2.4s ease-in-out infinite; }
+@keyframes rotate-phone { 0%, 25% { transform: rotate(-90deg); } 55%, 100% { transform: rotate(0deg); } }
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  #rotate { display: flex; }
+}

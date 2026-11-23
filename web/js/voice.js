@@ -18,15 +18,32 @@ window.__speechDone = (id) => {
   if (done) { pending.delete(String(id)); done(); }
 };
 
-// Best voice for the language: the exact variant first (fr-FR, or the phone's
-// English such as en-GB), installed on the device if possible.
+// Best browser voice for the language. Natural/online voices (Edge, Chrome,
+// Safari "enhanced") sound much better than the old robotic ones, the exact
+// variant is preferred (fr-FR, or the phone's English such as en-GB), and
+// Apple's joke voices (Albert, Bubbles, Zarvox…) are never used: without a
+// good voice, the browser's default voice for the language is used.
+const NOVELTY = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|junior|ralph|fred|kathy|princess|bruce|agnes|vicki|eddy|flo|grandma|grandpa|grand-m[eè]re|grand-p[eè]re|reed|rocko|sandy|shelley)\b/i;
+const NICE = /natural|neural|online|enhanced|premium|siri/i;
+const KNOWN = {
+  fr: /google|denise|vivienne|eloise|henri|audrey|aur[eé]lie|marie|thomas|am[eé]lie/i,
+  en: /google|aria|jenny|ava|samantha|karen|serena|kate|moira|tessa|daniel|libby|sonia/i,
+};
+export function pickVoice(voices, lang, loc) {
+  const exact = new RegExp('^' + loc.replace('-', '[-_]') + '$', 'i');
+  let best = null;
+  let bestScore = -Infinity;
+  for (const v of voices) {
+    if (!v.lang || !v.lang.toLowerCase().replace('_', '-').startsWith(lang) || NOVELTY.test(v.name || '')) continue;
+    const score = (exact.test(v.lang) ? 8 : 0) + (NICE.test(v.name) ? 4 : 0)
+      + (KNOWN[lang] && KNOWN[lang].test(v.name) ? 3 : 0) + (v.localService ? 1 : 0);
+    if (score > bestScore) { best = v; bestScore = score; }
+  }
+  return best;
+}
 function pickBrowserVoice() {
   if (!('speechSynthesis' in window)) return null;
-  const voices = speechSynthesis.getVoices();
-  const same = voices.filter((v) => v.lang && v.lang.toLowerCase().startsWith(LANG));
-  const exact = new RegExp('^' + locale().replace('-', '[-_]') + '$', 'i');
-  return same.find((v) => exact.test(v.lang) && v.localService) || same.find((v) => exact.test(v.lang))
-    || same.find((v) => v.localService) || same[0] || null;
+  return pickVoice(speechSynthesis.getVoices(), LANG, locale());
 }
 
 // Tell the voice which language to use (the Android app picks its own voice).
@@ -41,6 +58,20 @@ if ('speechSynthesis' in window) {
 }
 updateLanguage();
 onLanguageChange(updateLanguage);
+
+// Browsers only let a page talk after a touch (iPhone, Chrome): say an empty
+// sentence on the first touch, so that later sentences are allowed too.
+if (!bridge && 'speechSynthesis' in window) {
+  const prime = () => {
+    document.removeEventListener('click', prime, true);
+    try {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      speechSynthesis.speak(u);
+    } catch (e) { /* ignore */ }
+  };
+  document.addEventListener('click', prime, true);
+}
 
 // Rough duration of a sentence, used as a safety net and when the voice is off.
 function estimate(text) {
@@ -86,6 +117,7 @@ export function speak(text, { silentWait = true } = {}) {
       } else if ('speechSynthesis' in window) {
         const u = new SpeechSynthesisUtterance(text);
         u.lang = locale();
+        if (!browserVoice) browserVoice = pickBrowserVoice();
         if (browserVoice) u.voice = browserVoice;
         u.rate = 0.92;
         u.pitch = 1.08;

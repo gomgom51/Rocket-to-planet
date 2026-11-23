@@ -7,13 +7,15 @@
 </head>
 <body>
 <!-- Renders the launcher icon foreground (Saturn + rocket) with the game's own
-     3D models. Used by tools/make_icon.py through a headless browser. -->
+     3D models. Used by tools/make_icon.js through a headless browser. -->
 <canvas id="c" width="432" height="432"></canvas>
 <script type="module">
   import { THREE, loadTexture, createPlanet, createRocket } from '../web/js/gfx.js';
   import { PLANETS, faceRotation } from '../web/js/data.js';
 
   const canvas = document.getElementById('c');
+  // ?size=768 renders a bigger version (used for the browser version's icons)
+  canvas.width = canvas.height = Number(new URLSearchParams(location.search).get('size')) || 432;
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
   renderer.setClearColor(0x000000, 0);

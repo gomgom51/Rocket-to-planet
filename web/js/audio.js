@@ -510,6 +510,15 @@ export function playMusic(name) {
   });
 }
 
+// Browsers block sound until the first touch: on each touch, start the music
+// that should already be playing (the home music, for instance).
+document.addEventListener('click', () => {
+  if (!ctx && !currentTrack) return;
+  unlockAudio();
+  const st = currentTrack && trackState[currentTrack];
+  if (st && st.ok !== false && st.el.paused && !(st.el.ended && !st.el.loop)) st.el.play().catch(() => {});
+}, true);
+
 // For tests: what is playing right now.
 export function audioState() {
   const st = currentTrack && trackState[currentTrack];

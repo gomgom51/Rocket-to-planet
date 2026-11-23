@@ -97,6 +97,29 @@ automatiquement un nouvel APK (2 à 3 minutes), à télécharger avec le même l
 La musique baisse automatiquement quand la voix parle, et un réglage
 « Musique » permet de la couper.
 
+## Jouer dans le navigateur (sans rien installer, aussi sur iPhone)
+
+Le jeu est aussi publié gratuitement en ligne avec GitHub Pages :
+**https://gomgom51.github.io/Rocket-to-planet/**
+
+* Il fonctionne sur Android (Chrome), iPhone et iPad (Safari) et sur ordinateur
+  (Chrome, Edge, Firefox, Safari).
+* Pour l’avoir comme une application, en plein écran : menu du navigateur →
+  *Ajouter à l’écran d’accueil* (Chrome), ou bouton *Partager* →
+  *Sur l’écran d’accueil* (Safari).
+* Sur un téléphone, le jeu se joue en tenant le téléphone droit (un message le
+  rappelle si on le tourne).
+* La voix est celle du navigateur ; sur ordinateur, Edge et Chrome ont les plus
+  belles voix.
+* Il faut une connexion internet : environ 6 Mo sont téléchargés à l’ouverture,
+  puis les musiques au fil de la partie. L’APK Android, lui, marche hors ligne.
+* Les étoiles et les tampons sont gardés dans le navigateur (pas de compte,
+  aucune donnée envoyée).
+
+Le site est mis à jour automatiquement à chaque modification du dossier `web/`
+(`.github/workflows/pages.yml`). Il faut l’activer une seule fois dans le
+dépôt : *Settings → Pages → Build and deployment → Source :* **GitHub Actions**.
+
 ## Installer l’application sur le téléphone Android
 
 L’APK est fabriqué automatiquement par GitHub Actions à chaque modification.
@@ -156,9 +179,12 @@ désinstaller. Ce n’est pas une clé adaptée à une publication sur le Play S
   * `js/screens.js` : le carnet de bord et « Ma fusée ».
   * `js/progress.js` : les étoiles, tampons, photos et le style de la fusée.
   * `js/main.js` : le déroulement de la partie et les écrans.
+  * `manifest-fr.webmanifest`, `manifest-en.webmanifest`, `icons/` : le nom et
+    l’icône du jeu quand on l’ajoute à l’écran d’accueil depuis le navigateur.
 * `android/` : la petite application Android qui affiche le jeu (WebView) et lui
   donne la voix (TextToSpeech, en français ou en anglais).
-* `tools/` : scripts pour préparer les textures et l’icône.
+* `tools/` : scripts pour préparer les textures et les icônes (`make_icon.js`
+  pour Android, `make_web_icons.py` pour la version navigateur).
 
 ## Crédits
 
